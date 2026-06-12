@@ -1,0 +1,6 @@
+backend/
+.agents/
+sigma/
+data/
+*.md
+!README.md
