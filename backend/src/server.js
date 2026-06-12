@@ -11,6 +11,10 @@ const attackPathRoutes = require("./routes/attackPath");
 const riskRoutes = require("./routes/risk");
 const containRoutes = require("./routes/contain");
 const explainRoutes = require("./routes/explain");
+const aiRoutes = require("./routes/ai");
+const sigmaRoutes = require("./routes/sigma");
+const webhookRoutes = require("./routes/webhook");
+const simulateRoutes = require("./routes/simulate");
 
 const app = express();
 
@@ -25,6 +29,10 @@ app.use("/api", attackPathRoutes);
 app.use("/api", riskRoutes);
 app.use("/api", containRoutes);
 app.use("/api", explainRoutes);
+app.use("/api", aiRoutes);
+app.use("/api", sigmaRoutes);
+app.use("/api", webhookRoutes);
+app.use("/api", simulateRoutes);
 
 app.get("/", (_req, res) => {
   res.json({
@@ -41,6 +49,13 @@ app.get("/", (_req, res) => {
       "GET /api/explain/:incidentId",
       "POST /api/contain/:incidentId",
       "POST /api/reload",
+      "GET /api/sigma",
+      "GET /api/ai/respond/:incidentId",
+      "POST /api/ai/chat",
+      "POST /api/webhook/wazuh",
+      "POST /api/simulate/kerberoast",
+      "POST /api/simulate/reset",
+      "GET /api/simulate/status",
     ],
   });
 });

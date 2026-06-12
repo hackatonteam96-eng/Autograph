@@ -72,8 +72,11 @@ class DataStore {
     this.attackPathFile = path.join(DATA_DIR, "attack-path.json");
     this.wazuhRealPath = path.join(DATA_DIR, "wazuh-alert-real.json");
 
-    /** @type {Map<string, { status: string, contained_at?: string, risk_before?: number, risk_after?: number }>} */
+    /** @type {Map<string, { status: string; contained_at?: string; risk_before?: number; risk_after?: number }>} */
     this.incidentState = new Map();
+
+    /** @type {{ active: boolean; step: number; startedAt: number | null; risk: number }} */
+    this.simulation = { active: false, step: 0, startedAt: null, risk: 12 };
   }
 
   /**
@@ -128,13 +131,73 @@ class DataStore {
   withIncidentStatus(alert) {
     const state = this.incidentState.get(alert.id);
     const contained = state?.status === "contained";
+    const simRisk = this.getSimulatedRisk();
 
     return {
       ...alert,
-      status: state?.status || "open",
-      risk: contained ? (state.risk_after ?? alert.risk) : alert.risk,
+      status: state?.status || (this.simulation.active ? "correlating" : "open"),
+      risk: contained ? (state.risk_after ?? alert.risk) : this.simulation.active ? simRisk : alert.risk,
       contained_at: state?.contained_at || null,
+      simulation_active: this.simulation.active,
+      demo_step: this.getDemoStep(),
     };
+  }
+
+  getDemoStep() {
+    if (!this.simulation.active) return 0;
+    const elapsed = Date.now() - (this.simulation.startedAt || Date.now());
+    if (elapsed < 620) return 1;
+    if (elapsed < 1240) return 2;
+    if (elapsed < 1860) return 3;
+    return 3;
+  }
+
+  getSimulatedRisk() {
+    if (!this.simulation.active) return 12;
+    const step = this.getDemoStep();
+    return [12, 39, 64, 87][step] ?? 87;
+  }
+
+  getSimulationStatus() {
+    return {
+      active: this.simulation.active,
+      step: this.getDemoStep(),
+      risk: this.getSimulatedRisk(),
+      timeline_count: this.simulation.active ? Math.min(this.getDemoStep() + 1, 5) : 0,
+    };
+  }
+
+  triggerKerberoastSimulation() {
+    this.simulation = { active: true, step: 0, startedAt: Date.now(), risk: 12 };
+    const alert = this.getAlerts()[0];
+    return {
+      ok: true,
+      message: "Kerberoasting simulation started",
+      incident: alert,
+      status: this.getSimulationStatus(),
+    };
+  }
+
+  resetSimulation() {
+    this.simulation = { active: false, step: 0, startedAt: null, risk: 12 };
+    this.incidentState.clear();
+    return { ok: true, message: "Demo reset" };
+  }
+
+  ingestWebhook(payload) {
+    try {
+      const fs = require("fs");
+      const list = Array.isArray(payload) ? payload : [payload];
+      fs.writeFileSync(this.wazuhRealPath, JSON.stringify(list.length === 1 ? list[0] : list, null, 2));
+      const ingested = ingestWazuh(list, DATA_DIR);
+      if (ingested.length === 0) {
+        return { ok: false, error: "Could not parse Wazuh payload" };
+      }
+      this.simulation = { active: true, step: 3, startedAt: Date.now(), risk: ingested[0].risk ?? 87 };
+      return { ok: true, alerts: ingested.length, incident: ingested[0] };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
   }
 
   /**
