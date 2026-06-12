@@ -1,0 +1,48 @@
+title: Possible Kerberoasting Activity
+id: authgraph-kerberoasting-4769
+status: experimental
+description: |
+  Detects Kerberoasting indicators in Windows Security Event ID 4769.
+  A Kerberos service ticket (TGS) was requested with RC4 encryption for a
+  non-krbtgt service principal — a common precursor to offline password cracking.
+  AuthGraph ITDR correlates multiple TGS requests from the same user for higher fidelity.
+author: Gular — AuthGraph ITDR Detection Team
+date: 2026/06/12
+references:
+  - https://attack.mitre.org/techniques/T1558/003/
+  - https://www.trustedsec.com/blog/art-of-krbtgt/
+  - https://github.com/SigmaHQ/sigma/blob/master/rules/windows/builtin/security/win_security_kerberoasting.yml
+tags:
+  - attack.credential_access
+  - attack.t1558.003
+  - car.2013-08-001
+logsource:
+  product: windows
+  service: security
+  definition: 'Requirements: Audit Kerberos Service Ticket Operations enabled'
+detection:
+  selection:
+    EventID: 4769
+    TicketOptions: '0x40810000'
+  filter_krbtgt:
+    ServiceName|contains: 'krbtgt'
+  filter_rc4:
+    TicketEncryptionType:
+      - '0x17'
+      - '0x1'
+      - '0x23'
+      - '0x3'
+  condition: selection and filter_rc4 and not filter_krbtgt
+falsepositives:
+  - Legacy applications requiring RC4 for Kerberos
+  - Service accounts with misconfigured SPNs during maintenance windows
+  - Vulnerability scanners performing authenticated enumeration
+level: high
+fields:
+  - TargetUserName
+  - ServiceName
+  - TicketEncryptionType
+  - IpAddress
+  - WorkstationName
+  - Status
+  - AccountName

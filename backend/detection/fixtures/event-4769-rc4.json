@@ -1,0 +1,11 @@
+{
+  "event_id": 4769,
+  "time": "2026-06-12T14:03:00Z",
+  "AccountName": "lowpriv.user",
+  "ServiceName": "MSSQLSvc/SQL-SERVER.corp.local:1433",
+  "TicketEncryptionType": "0x17",
+  "IpAddress": "10.0.0.42",
+  "WorkstationName": "WS-ATTACKER",
+  "Status": "0x0",
+  "host": "DC01"
+}
