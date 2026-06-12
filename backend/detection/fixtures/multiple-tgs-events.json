@@ -1,0 +1,29 @@
+[
+  {
+    "event_id": 4769,
+    "time": "2026-06-12T14:01:00Z",
+    "user": "lowpriv.user",
+    "service_name": "MSSQLSvc/SQL-SERVER.corp.local:1433",
+    "ticket_encryption_type": "0x17",
+    "source_ip": "10.0.0.42",
+    "host": "DC01"
+  },
+  {
+    "event_id": 4769,
+    "time": "2026-06-12T14:02:00Z",
+    "user": "lowpriv.user",
+    "service_name": "HTTP/webapp.corp.local",
+    "ticket_encryption_type": "0x17",
+    "source_ip": "10.0.0.42",
+    "host": "DC01"
+  },
+  {
+    "event_id": 4769,
+    "time": "2026-06-12T14:03:00Z",
+    "user": "lowpriv.user",
+    "service_name": "MSSQLSvc/SQL-SERVER.corp.local:1433",
+    "ticket_encryption_type": "0x17",
+    "source_ip": "10.0.0.42",
+    "host": "DC01"
+  }
+]
