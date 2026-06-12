@@ -1,307 +1,90 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import {
-  Controls,
-  Handle,
-  MarkerType,
-  Position,
-  ReactFlow,
-  type Edge,
-  type Node,
-  type NodeProps,
-} from '@xyflow/react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   ArrowClockwise,
-  Broadcast,
-  Circuitry,
-  Clock,
-  Crosshair,
-  Database,
+  ChartLineUp,
   Fingerprint,
-  Fire,
-  GearSix,
+  GlobeHemisphereWest,
   Graph,
-  House,
-  Key,
-  LockKey,
   Play,
-  Pulse,
   ShieldCheck,
-  ShieldWarning,
-  Sparkle,
+  SquaresFour,
   TerminalWindow,
-  UserCircle,
-  Warning,
+  WarningCircle,
+  Lightning,
+  Clock,
+  Eye,
+  Database,
+  Cpu,
+  Radioactive,
 } from '@phosphor-icons/react'
-import * as THREE from 'three'
-import RepositoryGlobe from './RepositoryGlobe'
+import { motion, AnimatePresence, useMotionValue, useSpring } from 'motion/react'
+import AttackGraph from './components/AttackGraph'
+import AttackPathPipeline from './components/AttackPathPipeline'
+import FloatingCopilot from './components/FloatingCopilot'
+import RiskPanel from './components/RiskPanel'
+import TelemetryGlobe from './components/TelemetryGlobe'
 import { api, type Alert, type AttackPath } from './api/client'
-import fallbackPath from './data/attack-path.json'
 
-type PathNode = AttackPath['nodes'][number]
-type AttackNodeData = PathNode & { active?: boolean; contained?: boolean; live?: boolean }
+type View = 'command' | 'path' | 'detection' | 'response' | 'telemetry'
 
-const fallbackAlert: Alert = {
-  id: 'alert-001',
-  time: '2026-06-12T14:03:00Z',
-  source: 'Wazuh',
-  attack: 'Kerberoasting',
-  mitre: 'T1558.003',
-  severity: 'critical',
-  risk: 87,
-  user: 'lowpriv.user',
-  target: 'svc-sql',
-  source_ip: '10.0.0.42',
-  host: 'DC01',
-  event_id: 4769,
-  evidence: [],
-  response: [
-    'Reset service account password',
-    'Disable RC4 Kerberos encryption',
-    'Review SPN ownership',
-    'Investigate source user session',
-    'Rotate credentials for exposed service account',
-  ],
-}
-
-const timeline = [
-  ['14:00:12', 'lowpriv.user authenticates to domain'],
-  ['14:01:44', 'SPN enumeration identifies svc-sql'],
-  ['14:03:00', 'Burst of RC4 TGS requests reaches DC01'],
-  ['14:03:04', 'Wazuh raises Kerberoasting alert'],
-  ['14:03:09', 'AuthGraph maps privileged identity path'],
+const NAV: { id: View; label: string; icon: typeof SquaresFour }[] = [
+  { id: 'command',   label: 'Command',     icon: SquaresFour       },
+  { id: 'path',      label: 'Attack path', icon: Graph             },
+  { id: 'detection', label: 'Detection',   icon: TerminalWindow    },
+  { id: 'response',  label: 'Response',    icon: ShieldCheck       },
+  { id: 'telemetry', label: 'Telemetry',   icon: GlobeHemisphereWest },
 ]
 
-const positions: Record<string, { x: number; y: number }> = {
-  'lowpriv.user': { x: 72, y: 168 },
-  'svc-sql': { x: 318, y: 76 },
-  'SQL Admins': { x: 580, y: 150 },
-  'SQL-SERVER': { x: 822, y: 52 },
-  'Domain Sensitive Assets': { x: 1055, y: 168 },
-}
+const PIPELINE = [
+  { label: 'Active Directory', sub: 'Event 4769', ok: true },
+  { label: 'Wazuh Agent', sub: 'Log forward', ok: true },
+  { label: 'Sigma Rule', sub: 'T1558.003', ok: true },
+  { label: 'AuthGraph', sub: 'Correlator', ok: (connected: boolean) => connected },
+  { label: 'ARIA AI', sub: 'v4-flash / v4-pro', ok: true },
+]
 
-const iconForType = {
-  user: UserCircle,
-  service_account: Key,
-  group: Graph,
-  host: Database,
-  asset: LockKey,
-}
+const timeline = [
+  { ts: '14:00:12', text: 'lowpriv.user authenticates to domain' },
+  { ts: '14:01:44', text: 'SPN enumeration — svc-sql discovered' },
+  { ts: '14:03:00', text: 'Burst of RC4 TGS requests hits DC01' },
+  { ts: '14:03:04', text: 'Wazuh raises Kerberoasting alert (level 12)' },
+  { ts: '14:03:09', text: 'AuthGraph correlates identity attack path' },
+]
 
-const simulationSteps = ['Waiting', 'Attack detected', 'Correlated', 'Critical', 'Contained'] as const
-
-function AttackNode({ data }: NodeProps<Node<AttackNodeData>>) {
-  const Icon = iconForType[data.type as keyof typeof iconForType] ?? Graph
-
-  return (
-    <div className={`attack-node risk-${data.risk} ${data.active ? 'is-active' : ''} ${data.contained ? 'is-contained' : ''} ${data.live ? 'is-live' : ''}`}>
-      <Handle type="target" position={Position.Left} />
-      <div className="node-orbit">
-        <Icon size={21} weight="duotone" />
-      </div>
-      <div>
-        <strong>{data.id}</strong>
-        <span>{data.type.replace('_', ' ')}</span>
-      </div>
-      <Handle type="source" position={Position.Right} />
-    </div>
-  )
-}
-
-const nodeTypes = { attackNode: AttackNode }
-
-type RawGlobePoint = { lon: number; lat: number; type: string }
-type GlobeData = { points: RawGlobePoint[] }
-
-function toSpherePosition(lon: number, lat: number, radius: number) {
-  const phi = (90 - lat) * (Math.PI / 180)
-  const theta = (lon + 180) * (Math.PI / 180)
-
-  return new THREE.Vector3(
-    -radius * Math.sin(phi) * Math.cos(theta),
-    radius * Math.cos(phi),
-    radius * Math.sin(phi) * Math.sin(theta),
-  )
-}
-
-function ThreatGlobe({ active, contained, expanded }: { active: boolean; contained: boolean; expanded: boolean }) {
-  return <RepositoryGlobe active={active} contained={contained} expanded={expanded} />
-
-  const mountRef = useRef<HTMLDivElement | null>(null)
+function AnimatedCounter({ value }: { value: number }) {
+  const motionVal = useMotionValue(value)
+  const spring = useSpring(motionVal, { stiffness: 60, damping: 18 })
+  const [display, setDisplay] = useState(value)
+  const prev = useRef(value)
 
   useEffect(() => {
-    const mount = mountRef.current
-    if (!mount) return
-
-    let disposed = false
-    const scene = new THREE.Scene()
-    const camera = new THREE.PerspectiveCamera(38, mount.clientWidth / mount.clientHeight, 0.1, 100)
-    camera.position.z = 4.35
-
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.8))
-    renderer.setSize(mount.clientWidth, mount.clientHeight)
-    mount.appendChild(renderer.domElement)
-
-    const globeGroup = new THREE.Group()
-    scene.add(globeGroup)
-
-    const textureLoader = new THREE.TextureLoader()
-    const earthTexture = textureLoader.load('/models/earth/earth-albedo.jpg')
-    const nightTexture = textureLoader.load('/models/earth/earth-night_lights_modified.jpg')
-    const cloudTexture = textureLoader.load('/models/earth/clouds-earth.jpg')
-
-    const sphere = new THREE.Mesh(
-      new THREE.SphereGeometry(1.42, 96, 96),
-      new THREE.MeshPhongMaterial({
-        map: earthTexture,
-        emissiveMap: nightTexture,
-        emissive: new THREE.Color(contained ? '#4de7c8' : '#ffaa44'),
-        emissiveIntensity: active ? 1.8 : 0.85,
-        shininess: 6,
-      }),
-    )
-    globeGroup.add(sphere)
-
-    const clouds = new THREE.Mesh(
-      new THREE.SphereGeometry(1.445, 64, 64),
-      new THREE.MeshPhongMaterial({
-        map: cloudTexture,
-        alphaMap: cloudTexture,
-        transparent: true,
-        opacity: expanded ? 0.14 : 0.08,
-        depthWrite: false,
-      }),
-    )
-    globeGroup.add(clouds)
-
-    const atmosphere = new THREE.Mesh(
-      new THREE.SphereGeometry(1.52, 96, 96),
-      new THREE.MeshBasicMaterial({
-        color: new THREE.Color('#68d7ff'),
-        transparent: true,
-        opacity: expanded ? 0.1 : 0.055,
-        side: THREE.BackSide,
-      }),
-    )
-    globeGroup.add(atmosphere)
-
-    const dots = new THREE.Group()
-    fetch('/data/globe-points.json')
-      .then((response) => response.json())
-      .then((data: GlobeData) => {
-        if (disposed) return
-        data.points
-          .filter((point, index) => point.type === 'land' && index % (expanded ? 58 : 118) === 0)
-          .slice(0, expanded ? 420 : 150)
-          .forEach((point, index) => {
-            const dot = new THREE.Mesh(
-              new THREE.SphereGeometry(index % 37 === 0 ? 0.012 : 0.007, 8, 8),
-              new THREE.MeshBasicMaterial({
-                color: new THREE.Color(index % 37 === 0 && active ? '#ff4d6d' : '#4de7c8'),
-                transparent: true,
-                opacity: index % 37 === 0 && active ? 0.92 : 0.42,
-              }),
-            )
-            dot.position.copy(toSpherePosition(point.lon, point.lat, 1.475))
-            dots.add(dot)
-          })
-      })
-      .catch(() => undefined)
-
-    const threatPins = [
-      { lon: 49.8, lat: 40.4, color: active && !contained ? '#ff4d6d' : '#4de7c8' },
-      { lon: -77.0, lat: 38.9, color: '#4de7c8' },
-      { lon: 13.4, lat: 52.5, color: '#ffaa44' },
-    ]
-
-    threatPins.forEach((pin) => {
-      const dot = new THREE.Mesh(
-        new THREE.SphereGeometry(expanded ? 0.025 : 0.018, 14, 14),
-        new THREE.MeshBasicMaterial({
-          color: new THREE.Color(pin.color),
-          transparent: true,
-          opacity: 0.98,
-        }),
-      )
-      dot.position.copy(toSpherePosition(pin.lon, pin.lat, 1.5))
-      dots.add(dot)
-    })
-    globeGroup.add(dots)
-
-    const arcMaterial = new THREE.LineBasicMaterial({
-      color: new THREE.Color(contained ? '#4de7c8' : active ? '#ff4d6d' : '#64748b'),
-      transparent: true,
-      opacity: active ? 0.92 : 0.22,
-    })
-    const arc = new THREE.Line(
-      new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(-1.2, 0.35, 0.96),
-        new THREE.Vector3(-0.5, 1.32, 0.7),
-        new THREE.Vector3(0.72, 0.62, 1.03),
-      ]),
-      arcMaterial,
-    )
-    globeGroup.add(arc)
-
-    const light = new THREE.DirectionalLight('#dff7ff', 2.2)
-    light.position.set(2.6, 1.8, 3)
-    scene.add(light)
-    scene.add(new THREE.AmbientLight('#2c5c82', 1.2))
-
-    const handleResize = () => {
-      if (!mount) return
-      camera.aspect = mount.clientWidth / mount.clientHeight
-      camera.updateProjectionMatrix()
-      renderer.setSize(mount.clientWidth, mount.clientHeight)
+    if (prev.current !== value) {
+      motionVal.set(value)
+      prev.current = value
     }
-    window.addEventListener('resize', handleResize)
+  }, [value, motionVal])
 
-    let raf = 0
-    const animate = () => {
-      globeGroup.rotation.y += expanded ? 0.002 : 0.001
-      clouds.rotation.y += 0.0008
-      arcMaterial.color.set(contained ? '#4de7c8' : active ? '#ff4d6d' : '#64748b')
-      arcMaterial.opacity = active ? 0.92 : 0.22
-      renderer.render(scene, camera)
-      raf = window.requestAnimationFrame(animate)
-    }
-    animate()
+  useEffect(() => spring.on('change', (v) => setDisplay(Math.round(v))), [spring])
 
-    return () => {
-      disposed = true
-      window.cancelAnimationFrame(raf)
-      window.removeEventListener('resize', handleResize)
-      renderer.dispose()
-      sphere.geometry.dispose()
-      clouds.geometry.dispose()
-      atmosphere.geometry.dispose()
-      earthTexture.dispose()
-      nightTexture.dispose()
-      cloudTexture.dispose()
-      arc.geometry.dispose()
-      arcMaterial.dispose()
-      mount.removeChild(renderer.domElement)
-    }
-  }, [active, contained, expanded])
-
-  return <div className="globe-canvas" ref={mountRef} aria-label="Live identity telemetry globe" />
+  return <>{display}</>
 }
 
-function App() {
+export default function App() {
+  const [view, setView] = useState<View>('command')
   const [connected, setConnected] = useState(false)
   const [alert, setAlert] = useState<Alert | null>(null)
-  const [pathData, setPathData] = useState<AttackPath>(fallbackPath as AttackPath)
+  const [attackPath, setAttackPath] = useState<AttackPath | null>(null)
   const [sigmaYaml, setSigmaYaml] = useState('')
-  const [containActions, setContainActions] = useState<string[]>([])
-  const [loading, setLoading] = useState(true)
-  const [busy, setBusy] = useState(false)
-  const selectedAlert = alert ?? fallbackAlert
+  const [aiActions, setAiActions] = useState<string[]>([])
   const [contained, setContained] = useState(false)
-  const [selectedNode, setSelectedNode] = useState(selectedAlert.target)
+  const [containActions, setContainActions] = useState<string[]>([])
+  const [focusedNode, setFocusedNode] = useState<string | null>(null)
   const [demoStep, setDemoStep] = useState(0)
   const [riskScore, setRiskScore] = useState(12)
-  const [activeTimelineCount, setActiveTimelineCount] = useState(0)
-  const [globeExpanded, setGlobeExpanded] = useState(false)
+  const [timelineCount, setTimelineCount] = useState(0)
+  const [loading, setLoading] = useState(true)
+  const [busy, setBusy] = useState(false)
+  const [clock, setClock] = useState('')
 
   const refresh = useCallback(async () => {
     try {
@@ -309,24 +92,21 @@ function App() {
         api.health(), api.incidents(), api.attackPath(), api.sigma(),
       ])
       setConnected(health.ok)
-      setPathData(path)
+      setAttackPath(path)
       setSigmaYaml(sigma.yaml)
       const current = incidents[0] ?? null
       setAlert(current)
       if (current) {
         setContained(current.status === 'contained')
-        setSelectedNode((node) => node || current.target)
+        setFocusedNode((f) => f ?? current.target)
         if (current.simulation_active) {
           setDemoStep(current.demo_step ?? 0)
           setRiskScore(current.risk)
-          setActiveTimelineCount(Math.min((current.demo_step ?? 0) + 1, timeline.length))
+          setTimelineCount(Math.min((current.demo_step ?? 0) + 1, 5))
         }
       }
-    } catch {
-      setConnected(false)
-    } finally {
-      setLoading(false)
-    }
+    } catch { setConnected(false) }
+    finally { setLoading(false) }
   }, [])
 
   useEffect(() => {
@@ -334,92 +114,49 @@ function App() {
     const poll = window.setInterval(async () => {
       try {
         const [status, incidents] = await Promise.all([api.simulateStatus(), api.incidents()])
-        if (status.active) {
-          setDemoStep(status.step)
-          setRiskScore(status.risk)
-          setActiveTimelineCount(status.timeline_count)
-        }
+        if (status.active) { setDemoStep(status.step); setRiskScore(status.risk); setTimelineCount(status.timeline_count) }
         const live = incidents[0]
         if (live && live.risk >= 80 && !live.simulation_active) {
-          setDemoStep(3)
-          setRiskScore(live.risk)
-          setActiveTimelineCount(5)
-          setAlert(live)
+          setDemoStep(3); setRiskScore(live.risk); setTimelineCount(5); setAlert(live)
         }
       } catch { /* offline */ }
     }, 2000)
     return () => window.clearInterval(poll)
   }, [refresh])
 
-  const selectedPathNode = pathData.nodes.find((node) => node.id === selectedNode) ?? pathData.nodes[1]
-  const hasIncident = demoStep > 0 || (selectedAlert.risk ?? 0) >= 80
+  useEffect(() => {
+    const tick = () => setClock(new Date().toISOString().slice(11, 19) + ' UTC')
+    tick()
+    const id = window.setInterval(tick, 1000)
+    return () => window.clearInterval(id)
+  }, [])
 
-  const graph = useMemo(() => {
-    const nodes: Node<AttackNodeData>[] = pathData.nodes.map((node) => ({
-      id: node.id,
-      type: 'attackNode',
-      position: positions[node.id] ?? { x: 0, y: 0 },
-      data: {
-        ...node,
-        active: node.id === selectedNode || node.id === selectedAlert.target,
-        contained,
-        live: hasIncident,
-      },
-      draggable: false,
-    }))
+  useEffect(() => {
+    if (!alert?.id || demoStep === 0) return
+    api.aiRespond(alert.id).then((r) => setAiActions(r.actions)).catch(() => undefined)
+  }, [alert?.id, demoStep])
 
-    const edges: Edge[] = pathData.edges.map((edge, index) => ({
-      id: `${edge.from}-${edge.to}`,
-      source: edge.from,
-      target: edge.to,
-      label: edge.label,
-      animated: hasIncident && !contained,
-      type: 'smoothstep',
-      markerEnd: {
-        type: MarkerType.ArrowClosed,
-        color: contained ? '#4de7c8' : index === 0 && hasIncident ? '#ff4d6d' : '#4de7c8',
-      },
-      style: {
-        stroke: contained ? '#4de7c8' : index === 0 && hasIncident ? '#ff4d6d' : hasIncident ? '#4de7c8' : 'rgba(148, 163, 184, 0.34)',
-        strokeWidth: hasIncident ? (index === 0 ? 3 : 2) : 1.6,
-      },
-    }))
-
-    return { nodes, edges }
-  }, [selectedNode, selectedAlert.target, contained, hasIncident, pathData])
-
-  const isCritical = demoStep >= 3 && !contained
+  const hasIncident = demoStep > 0 || (alert?.risk ?? 0) >= 80
   const riskAfter = contained ? 32 : riskScore
-  const riskStyle = { '--risk': `${riskAfter}%` } as React.CSSProperties
+  const focus = focusedNode ?? alert?.target ?? 'svc-sql'
+  const responseList = contained
+    ? (containActions.length ? containActions : ['Source user disabled', 'Service account rotation queued', 'RC4 hardening applied', 'SOC ticket ITDR-001'])
+    : aiActions.length ? aiActions : alert?.response ?? []
 
   async function runSimulation() {
     if (busy) return
-    setBusy(true)
-    setContained(false)
-    setContainActions([])
-    try {
-      await api.simulateKerberoast()
-      await refresh()
-      setDemoStep(1)
-      setActiveTimelineCount(1)
-    } finally {
-      setBusy(false)
-    }
+    setBusy(true); setContained(false); setContainActions([])
+    try { await api.simulateKerberoast(); await refresh(); setDemoStep(1); setTimelineCount(1); setView('command') }
+    finally { setBusy(false) }
   }
 
   async function containIdentity() {
     if (!alert || busy || contained) return
     setBusy(true)
     try {
-      const result = await api.contain(alert.id)
-      setContained(true)
-      setDemoStep(4)
-      setRiskScore(result.risk_after)
-      setActiveTimelineCount(timeline.length)
-      setContainActions(result.actions)
-    } finally {
-      setBusy(false)
-    }
+      const r = await api.contain(alert.id)
+      setContained(true); setDemoStep(4); setRiskScore(r.risk_after); setTimelineCount(5); setContainActions(r.actions)
+    } finally { setBusy(false) }
   }
 
   async function resetDemo() {
@@ -427,249 +164,412 @@ function App() {
     setBusy(true)
     try {
       await api.simulateReset()
-      setContained(false)
-      setDemoStep(0)
-      setRiskScore(12)
-      setActiveTimelineCount(0)
-      setContainActions([])
-      setSelectedNode(fallbackAlert.target)
+      setContained(false); setDemoStep(0); setRiskScore(12); setTimelineCount(0)
+      setAiActions([]); setContainActions([]); setFocusedNode(null)
       await refresh()
-    } finally {
-      setBusy(false)
-    }
+    } finally { setBusy(false) }
   }
 
   if (loading) {
     return (
-      <main className="soc-shell" style={{ placeItems: 'center', display: 'grid' }}>
-        <div style={{ textAlign: 'center' }}>
-          <Fingerprint size={40} weight="duotone" />
-          <strong style={{ display: 'block', marginTop: 12 }}>AuthGraph ITDR</strong>
-          <span style={{ color: 'var(--muted)' }}>Connecting to detection pipeline?</span>
-        </div>
-      </main>
+      <div className="boot">
+        <div className="boot__orb" />
+        <Fingerprint size={40} weight="duotone" className="boot__icon" />
+        <strong>AuthGraph ITDR</strong>
+        <span>Connecting to detection pipeline…</span>
+      </div>
     )
   }
 
   return (
-    <main className="soc-shell">
-      <aside className="sidebar">
-        <div className="brand-lockup">
-          <div className="mark-core">
-            <Fingerprint size={25} weight="duotone" />
-          </div>
+    <div className={`ag ${hasIncident && !contained ? 'ag--incident' : ''}`}>
+      {/* ambient bg */}
+      <div className="ag__bg" aria-hidden />
+
+      {/* topbar */}
+      <header className="ag__header">
+        <div className="ag__brand">
+          <div className="ag__logo"><Fingerprint size={22} weight="duotone" /></div>
           <div>
-            <strong>AUTHGRAPH</strong>
-            <span>ITDR Console</span>
+            <strong>AuthGraph</strong>
+            <span>ITDR · VMware AD Lab</span>
           </div>
         </div>
-        <nav className="side-nav" aria-label="Product navigation">
-          <a className="is-active"><House size={17} weight="duotone" /> Command</a>
-          <a><ShieldWarning size={17} weight="duotone" /> Incidents</a>
-          <a><Graph size={17} weight="duotone" /> Attack paths</a>
-          <a><TerminalWindow size={17} weight="duotone" /> Sigma rules</a>
-          <a><GearSix size={17} weight="duotone" /> Settings</a>
-        </nav>
-        <div className="operator-card">
-          <span>Operator</span>
-          <strong>Bahadur</strong>
-          <small>Frontend lead / demo driver</small>
+
+        <div className="ag__kpis">
+          <motion.div
+            className={`kpi ${hasIncident && !contained ? 'kpi--alert' : ''}`}
+            animate={hasIncident && !contained ? { boxShadow: ['0 0 0 0 rgba(255,92,92,0)', '0 0 0 8px rgba(255,92,92,0.12)', '0 0 0 0 rgba(255,92,92,0)'] } : {}}
+            transition={{ repeat: Infinity, duration: 2.4 }}
+          >
+            <ChartLineUp size={15} />
+            <span>Open</span>
+            <b>{hasIncident && !contained ? 1 : 0}</b>
+          </motion.div>
+          <div className={`kpi ${hasIncident && !contained ? 'kpi--critical' : ''}`}>
+            <WarningCircle size={15} />
+            <span>Critical</span>
+            <b>{hasIncident && !contained ? 1 : 0}</b>
+          </div>
+          <div className="kpi">
+            <ShieldCheck size={15} />
+            <span>Contained</span>
+            <b>{contained ? 1 : 0}</b>
+          </div>
+          <div className={`kpi ${connected ? 'kpi--live' : ''}`}>
+            <span className="kpi__dot" />
+            <span>Pipeline</span>
+            <b>{connected ? 'Live' : 'Down'}</b>
+          </div>
         </div>
-      </aside>
 
-      <section className="main-console">
-        <header className="topbar">
-          <div>
-            <span className="section-kicker">Identity Threat Detection and Response</span>
-            <h1>AUTHGRAPH</h1>
-          </div>
-          <div className="system-strip" aria-label="System status">
-            <span><Broadcast size={16} weight="duotone" /> {connected ? 'Wazuh signal live' : 'Pipeline offline'}</span>
-            <span><Circuitry size={16} weight="duotone" /> Sigma mapped</span>
-            <span><ShieldWarning size={16} weight="duotone" /> MITRE {selectedAlert.mitre}</span>
-          </div>
-        </header>
+        <div className="ag__toolbar">
+          <button className="ag__btn ag__btn--ghost" onClick={resetDemo} disabled={busy} aria-label="Reset">
+            <ArrowClockwise size={14} />
+          </button>
+          <button className="ag__btn" onClick={runSimulation} disabled={busy}>
+            <Play size={13} weight="fill" /> Run attack
+          </button>
+          <button
+            className={`ag__btn ag__btn--contain ${contained ? 'is-done' : ''}`}
+            onClick={containIdentity}
+            disabled={!hasIncident || contained || busy}
+          >
+            <ShieldCheck size={13} /> {contained ? 'Contained' : 'Contain'}
+          </button>
+          <time className="ag__clock">{clock}</time>
+        </div>
+      </header>
 
-        <section className="demo-console" aria-label="Demo controls">
-          <div className="state-rail">
-            {simulationSteps.map((step, index) => (
-              <span className={index <= demoStep ? 'is-active' : ''} key={step}>{step}</span>
-            ))}
-          </div>
-          <div className="demo-actions">
-            <button type="button" onClick={runSimulation} disabled={busy}><Play size={15} weight="fill" /> Run Kerberoasting Attack</button>
+      <div className="ag__shell">
+        {/* sidebar nav */}
+        <nav className="ag__nav" aria-label="Navigation">
+          {NAV.map(({ id, label, icon: Icon }) => (
             <button
+              key={id}
               type="button"
-              onClick={() => {
-                setDemoStep(Math.max(demoStep, 2))
-                setActiveTimelineCount(Math.max(activeTimelineCount, 4))
-              }}
+              className={view === id ? 'is-active' : ''}
+              onClick={() => setView(id)}
             >
-              <Broadcast size={15} weight="duotone" /> Replay Wazuh Alert
+              <Icon size={19} weight={view === id ? 'fill' : 'duotone'} />
+              <span>{label}</span>
+              {id === 'command' && hasIncident && !contained && (
+                <span className="nav__badge" />
+              )}
             </button>
-            <button type="button" onClick={containIdentity} disabled={!hasIncident || contained || busy}><ShieldCheck size={15} weight="duotone" /> Contain Identity</button>
-            <button type="button" onClick={resetDemo} disabled={busy}><ArrowClockwise size={15} weight="duotone" /> Reset Demo</button>
-          </div>
-        </section>
+          ))}
+        </nav>
 
-        <section className="soc-grid">
-          <section className="panel stage">
-            <div className="stage-header">
-              <div>
-                <span>Kerberoasting path reconstruction</span>
-                <h2>{selectedNode} is inside the active Kerberoasting path</h2>
-              </div>
-              <div className={`status-capsule ${contained ? 'contained' : ''}`}>
-                {contained ? <ShieldCheck size={17} weight="duotone" /> : <Warning size={17} weight="duotone" />}
-                {contained ? 'Contained' : isCritical ? 'Critical' : hasIncident ? 'Correlating' : 'Waiting'}
-              </div>
-            </div>
-            <div className="graph-toolbar" aria-label="Graph interaction modes">
-              <button type="button" className="is-active">Trace path</button>
-              <button type="button">Risk lens</button>
-              <button type="button">Sigma view</button>
-            </div>
-            <div className="graph-shell">
-              <ReactFlow
-                nodes={graph.nodes}
-                edges={graph.edges}
-                nodeTypes={nodeTypes}
-                onNodeMouseEnter={(_, node) => setSelectedNode(node.id)}
-                onNodeMouseLeave={() => setSelectedNode(selectedAlert.target)}
-                fitView
-                fitViewOptions={{ padding: 0.16 }}
-                minZoom={0.52}
-                maxZoom={1.25}
-                nodesDraggable={false}
-                panOnDrag={false}
-                zoomOnScroll={false}
-                proOptions={{ hideAttribution: true }}
-              >
-                <Controls showInteractive={false} />
-              </ReactFlow>
-            </div>
-          </section>
+        <main className="ag__main">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={view}
+              className="ag__view"
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+            >
 
-          <aside className="panel risk-panel">
-            <div className="risk-ring" style={riskStyle}>
-              <div>
-                <span>Risk</span>
-                <strong>{riskAfter}</strong>
-              </div>
-            </div>
-            <h2>{selectedAlert.target}</h2>
-            <p>Privileged service account with SPN exposure and an attack path into SQL administration.</p>
-            <div className="focus-lens">
-              <span>Graph focus</span>
-              <strong>{selectedPathNode.id}</strong>
-              <small>{selectedPathNode.type.replace('_', ' ')} / {selectedPathNode.risk} risk</small>
-            </div>
-            <div className="risk-delta">
-              <span>Containment impact</span>
-              <strong>{contained ? '-55 points' : 'pending action'}</strong>
-            </div>
-            <div className="identity-grid">
-              <span>MITRE</span><strong>{selectedAlert.mitre}</strong>
-              <span>Severity</span><strong>{contained ? 'contained' : selectedAlert.severity}</strong>
-              <span>Source</span><strong>{selectedAlert.source}</strong>
-            </div>
-          </aside>
+              {/* ── COMMAND ── */}
+              {view === 'command' && (
+                <div className="cmd">
+                  {/* Hero */}
+                  <section className={`cmd__hero ${hasIncident && !contained ? 'cmd__hero--critical' : ''} ${contained ? 'cmd__hero--ok' : ''}`}>
+                    <div className="cmd__hero-bg" aria-hidden />
+                    <div className="cmd__hero-grid">
+                      <div className="cmd__hero-left">
+                        <div className="cmd__hero-label">
+                          {hasIncident && !contained
+                            ? <><span className="pulse-dot" />Identity under attack</>
+                            : contained
+                              ? <><ShieldCheck size={14} weight="duotone" />Threat neutralized</>
+                              : <><Eye size={14} weight="duotone" />Perimeter monitoring</>
+                          }
+                        </div>
+                        <h1 className="cmd__hero-title">
+                          {hasIncident
+                            ? <><span className="cmd__hero-attack">{alert?.attack}</span><br />targeting <em>{alert?.target}</em></>
+                            : 'Identity perimeter secure'}
+                        </h1>
+                        {hasIncident ? (
+                          <div className="cmd__hero-tags">
+                            <span><code>{alert?.user}</code></span>
+                            <span>Event <code>{alert?.event_id}</code></span>
+                            <span><code>{alert?.host}</code></span>
+                            <span><code>{alert?.source_ip}</code></span>
+                            <span className="cmd__mitre">MITRE <code>{alert?.mitre}</code></span>
+                          </div>
+                        ) : (
+                          <p className="cmd__hero-sub">Wazuh · Sigma · AuthGraph pipeline armed. Run kerberoast in lab to trigger live detection.</p>
+                        )}
+                      </div>
 
-          <aside className="panel incidents-panel">
-            <div className="panel-heading">
-              <span>Active incidents</span>
-              <strong>{hasIncident ? '1 critical' : 'quiet'}</strong>
-            </div>
-            <button className={`incident-card ${hasIncident ? 'is-live' : ''}`} type="button">
-              <span className="incident-pulse"><Fire size={19} weight="fill" /></span>
-              <span>
-                <strong>{hasIncident ? selectedAlert.attack : 'No active identity incident'}</strong>
-                <small>{hasIncident ? `${selectedAlert.user} to ${selectedAlert.target}` : 'Waiting for telemetry'}</small>
-              </span>
-              <b>{hasIncident ? riskScore : 12}</b>
-            </button>
-            <p className="incident-summary">
-              {hasIncident
-                ? 'Low-privileged user requested multiple RC4 Kerberos service tickets for svc-sql, indicating possible Kerberoasting.'
-                : 'Run the simulation to replay telemetry, alerting, risk scoring, and response.'}
-            </p>
-            <div className="why-grid">
-              <span><strong>{hasIncident ? 4 : 0}</strong> detection signals</span>
-              <span><strong>{hasIncident ? 1 : 0}</strong> Sigma rule matched</span>
-              <span><strong>{hasIncident ? 1 : 0}</strong> privileged path found</span>
-            </div>
-            <div className="telemetry-stack">
-              <Telemetry icon={<Clock size={16} weight="duotone" />} label="Event time" value="14:03 UTC" />
-              <Telemetry icon={<TerminalWindow size={16} weight="duotone" />} label="Windows event" value={`${selectedAlert.event_id}`} />
-              <Telemetry icon={<Crosshair size={16} weight="duotone" />} label="Source IP" value={selectedAlert.source_ip} />
-              <Telemetry icon={<Pulse size={16} weight="duotone" />} label="Host" value={selectedAlert.host} />
-            </div>
-          </aside>
+                      <div className="cmd__hero-ring-wrap">
+                        <svg width="140" height="140" viewBox="0 0 140 140" className="cmd__hero-ring">
+                          <circle cx="70" cy="70" r="58" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="10" />
+                          <motion.circle
+                            cx="70" cy="70" r="58" fill="none"
+                            stroke={hasIncident && !contained ? 'var(--red)' : contained ? 'var(--green)' : 'var(--blue)'}
+                            strokeWidth="10" strokeLinecap="round"
+                            strokeDasharray={364}
+                            animate={{ strokeDashoffset: 364 - (364 * riskAfter) / 100 }}
+                            transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
+                            transform="rotate(-90 70 70)"
+                          />
+                        </svg>
+                        <div className="cmd__hero-ring-label">
+                          <strong><AnimatedCounter value={riskAfter} /></strong>
+                          <span>risk score</span>
+                        </div>
+                      </div>
+                    </div>
+                  </section>
 
-          <section className="panel timeline-panel">
-            <div className="panel-heading">
-              <span>Attack timeline</span>
-              <strong>5 steps</strong>
-            </div>
-            {timeline.map(([time, text], index) => (
-              <div className={`timeline-row ${index < activeTimelineCount ? 'is-active' : ''}`} key={time}>
-                <b>{time}</b>
-                <span>{text}</span>
-                <i>{index + 1}</i>
-              </div>
-            ))}
-          </section>
+                  {/* Detection pipeline strip */}
+                  <section className="cmd__pipeline glass-pane">
+                    <div className="cmd__pipeline-inner">
+                      {PIPELINE.map((step, i) => {
+                        const live = typeof step.ok === 'function' ? step.ok(connected) : step.ok
+                        return (
+                          <div key={step.label} className="cmd__pipe-step">
+                            <div className={`cmd__pipe-node ${live ? 'is-live' : ''} ${hasIncident && i === PIPELINE.length - 1 && !contained ? 'is-pulse' : ''}`}>
+                              <span className="cmd__pipe-dot" />
+                              <strong>{step.label}</strong>
+                              <em>{step.sub}</em>
+                            </div>
+                            {i < PIPELINE.length - 1 && <div className={`cmd__pipe-line ${live ? 'is-live' : ''}`} />}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </section>
 
-          <section className="panel sigma-panel">
-            <div className="panel-heading">
-              <span>Sigma rule viewer</span>
-              <strong>T1558.003</strong>
-            </div>
-            <pre>{sigmaYaml || 'Loading Sigma rule?'}</pre>
-          </section>
+                  {/* Stat cards */}
+                  <div className="cmd__stats">
+                    {[
+                      { icon: Fingerprint, label: 'Identities', val: '847', sub: 'monitored', tone: '' },
+                      { icon: TerminalWindow, label: 'Sigma rules', val: '1', sub: 'kerberoasting active', tone: 'ok' },
+                      { icon: Radioactive, label: 'MITRE', val: alert?.mitre ?? 'T1558.003', sub: 'technique mapped', tone: hasIncident ? 'warn' : '' },
+                      { icon: Database, label: 'Events/min', val: hasIncident ? '142' : '12', sub: connected ? 'pipeline live' : 'offline', tone: hasIncident ? 'crit' : '' },
+                    ].map(({ icon: Icon, label, val, sub, tone }) => (
+                      <motion.div key={label} className={`stat-card ${tone ? `stat-card--${tone}` : ''}`} whileHover={{ y: -2 }}>
+                        <Icon size={18} weight="duotone" />
+                        <div>
+                          <span>{label}</span>
+                          <strong>{val}</strong>
+                          <em>{sub}</em>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
 
-          <section className="panel response-panel">
-            <div className="panel-heading">
-              <span>Containment</span>
-              <strong>{contained ? 'risk reduced' : 'ready'}</strong>
-            </div>
-            <button className="contain-button" type="button" onClick={containIdentity} disabled={contained}>
-              <span>{contained ? 'Containment executed' : 'Contain svc-sql path'}</span>
-              <span className="button-orb">{contained ? <ShieldCheck size={18} weight="duotone" /> : <Sparkle size={18} weight="duotone" />}</span>
-            </button>
-            <div className="response-actions">
-              {(contained
-                ? (containActions.length ? containActions : ['Source user disabled', 'Service account marked for password rotation', 'RC4 disabled recommendation generated', 'SOC ticket created'])
-                : selectedAlert.response
-              ).map((action) => (
-                <div key={action}><ShieldCheck size={15} weight="duotone" /> {action}</div>
-              ))}
-            </div>
-          </section>
-        </section>
-      </section>
-      <aside className={`globe-widget ${globeExpanded ? 'is-expanded' : ''}`} aria-label="Expandable telemetry globe">
-        <button className="globe-toggle" type="button" onClick={() => setGlobeExpanded((value) => !value)}>
-          <span>{globeExpanded ? 'Collapse telemetry globe' : 'Expand telemetry globe'}</span>
-        </button>
-        <ThreatGlobe active={hasIncident} contained={contained} expanded={globeExpanded} />
-        <div className="globe-widget-copy">
-          <strong>{hasIncident ? 'DC01 anomaly trace' : 'Global telemetry'}</strong>
-          <span>{globeExpanded ? 'Repo-textured globe / calm point layer' : 'Click to inspect'}</span>
-        </div>
-      </aside>
-    </main>
-  )
-}
+                  <div className="cmd__body">
+                    <div className="cmd__main-col">
+                      {attackPath && alert && (
+                        <section className="glass-pane">
+                          <div className="pane-head">
+                            <h2><Graph size={13} weight="fill" /> Attack path</h2>
+                            <button type="button" onClick={() => setView('path')}>Full graph →</button>
+                          </div>
+                          <AttackPathPipeline
+                            attackPath={attackPath}
+                            targetId={alert.target}
+                            focusedId={focus}
+                            onFocus={setFocusedNode}
+                            hasIncident={hasIncident}
+                            contained={contained}
+                          />
+                        </section>
+                      )}
 
-function Telemetry({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
-  return (
-    <div className="telemetry-item">
-      {icon}
-      <span>{label}</span>
-      <strong>{value}</strong>
+                      <section className="glass-pane cmd__telemetry-mini">
+                        <div className="pane-head">
+                          <h2><GlobeHemisphereWest size={13} weight="fill" /> Global telemetry</h2>
+                          <button type="button" onClick={() => setView('telemetry')}>Expand →</button>
+                        </div>
+                        <TelemetryGlobe active={hasIncident} contained={contained} />
+                      </section>
+
+                      <div className="cmd__feed-row">
+                        <section className="glass-pane">
+                          <div className="pane-head">
+                            <h2><Lightning size={13} weight="fill" /> Live activity</h2>
+                            <span>{timelineCount}/{timeline.length}</span>
+                          </div>
+                          <ol className="activity-feed">
+                            {timeline.map(({ ts, text }, i) => (
+                              <motion.li key={ts} className={i < timelineCount ? 'is-done' : ''} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.05 }}>
+                                <Clock size={12} weight="duotone" />
+                                <time>{ts}</time>
+                                <span>{text}</span>
+                              </motion.li>
+                            ))}
+                          </ol>
+                        </section>
+
+                        {hasIncident && responseList.length > 0 && (
+                          <section className="glass-pane">
+                            <div className="pane-head">
+                              <h2><Cpu size={13} weight="fill" /> AI response</h2>
+                              <button type="button" onClick={() => setView('response')}>All actions →</button>
+                            </div>
+                            <ol className="cmd__ai-preview">
+                              {responseList.slice(0, 3).map((a, i) => (
+                                <li key={a}><span>{i + 1}</span>{a}</li>
+                              ))}
+                            </ol>
+                          </section>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="cmd__right">
+                      <section className="glass-pane cmd__risk-pane">
+                        <div className="pane-head"><h2><ChartLineUp size={13} weight="fill" /> Identity risk</h2></div>
+                        <RiskPanel alert={alert} score={riskAfter} focusedNode={focus} contained={contained} hasIncident={hasIncident} />
+                      </section>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ── ATTACK PATH ── */}
+              {view === 'path' && attackPath && alert && (
+                <div className="path-layout">
+                  <section className="glass-pane glass-pane--grow">
+                    <div className="pane-head">
+                      <h2>Attack path reconstruction</h2>
+                      <span>Kerberoasting → lateral movement · click nodes to inspect</span>
+                    </div>
+                    <AttackGraph
+                      attackPath={attackPath}
+                      targetId={alert.target}
+                      focusedId={focus}
+                      onFocus={setFocusedNode}
+                      hasIncident={hasIncident}
+                      contained={contained}
+                      height={520}
+                    />
+                  </section>
+                  <aside className="glass-pane path-aside">
+                    <div className="pane-head"><h2>Node detail</h2></div>
+                    {(() => {
+                      const node = attackPath.nodes.find((n) => n.id === focus)
+                      if (!node) return <p className="hint">Click a node to inspect</p>
+                      return (
+                        <div className="path-node-detail">
+                          <h3>{node.id}</h3>
+                          <span className={`badge badge--${node.risk}`}>{node.risk} risk</span>
+                          <p className="path-node-detail__type">{node.type.replace(/_/g, ' ')}</p>
+                          <ul className="path-node-detail__edges">
+                            {attackPath.edges.filter((e) => e.from === focus || e.to === focus).map((e) => (
+                              <li key={`${e.from}-${e.to}`}>
+                                <span>{e.from}</span>
+                                <em>→ {e.label}</em>
+                                <span>{e.to}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )
+                    })()}
+                  </aside>
+                </div>
+              )}
+
+              {/* ── DETECTION ── */}
+              {view === 'detection' && (
+                <div className="detect-layout">
+                  <section className="glass-pane">
+                    <div className="pane-head"><h2>Incident log</h2></div>
+                    <table className="data-table">
+                      <thead><tr><th>Time</th><th>Event</th><th>Actor</th><th>Target</th><th>Host</th><th>Risk</th><th>Status</th></tr></thead>
+                      <tbody>
+                        {hasIncident && alert
+                          ? <tr className="is-active">
+                              <td>{alert.time?.slice(11, 19)}</td>
+                              <td><code>{alert.event_id}</code></td>
+                              <td>{alert.user}</td>
+                              <td>{alert.target}</td>
+                              <td>{alert.host}</td>
+                              <td><span className={`badge badge--${alert.severity}`}>{riskAfter}</span></td>
+                              <td>{contained ? 'Contained' : 'Open'}</td>
+                            </tr>
+                          : <tr><td colSpan={7} className="empty">No incidents — run kerberoast or simulate</td></tr>
+                        }
+                      </tbody>
+                    </table>
+                  </section>
+                  <section className="glass-pane">
+                    <div className="pane-head"><h2>Attack timeline</h2></div>
+                    <ol className="timeline-list">
+                      {timeline.map(({ ts, text }, i) => (
+                        <li key={ts} className={i < timelineCount ? 'is-done' : ''}>
+                          <div className="timeline-list__dot" />
+                          <time>{ts}</time>
+                          <span>{text}</span>
+                        </li>
+                      ))}
+                    </ol>
+                  </section>
+                  <section className="glass-pane span-2">
+                    <div className="pane-head">
+                      <h2>Sigma rule</h2>
+                      <span>authgraph-kerberoasting-4769 · T1558.003</span>
+                    </div>
+                    <pre className="code-block">{sigmaYaml || 'Loading…'}</pre>
+                  </section>
+                </div>
+              )}
+
+              {/* ── RESPONSE ── */}
+              {view === 'response' && (
+                <div className="response-layout response-layout--solo">
+                  <section className="glass-pane glass-pane--grow">
+                    <div className="pane-head">
+                      <h2>Response actions</h2>
+                      <span>{contained ? 'Executed · deepseek-v4-pro' : aiActions.length ? 'AI · OpenRouter' : 'Playbook'}</span>
+                    </div>
+                    <ol className="action-list action-list--wide">
+                      {responseList.map((a, i) => (
+                        <motion.li
+                          key={a}
+                          initial={{ opacity: 0, x: -12 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: i * 0.07, ease: [0.16, 1, 0.3, 1] }}
+                        >
+                          <span>{i + 1}</span>
+                          <div>
+                            <strong>{a}</strong>
+                            <small>Priority {i + 1}</small>
+                          </div>
+                          {contained && <ShieldCheck size={16} weight="fill" className="txt-ok" />}
+                        </motion.li>
+                      ))}
+                    </ol>
+                    {!hasIncident && <p className="hint">Response actions appear when an incident is active. Use ARIA (bottom-right) for live analysis.</p>}
+                  </section>
+                </div>
+              )}
+
+              {/* ── TELEMETRY ── */}
+              {view === 'telemetry' && (
+                <section className="glass-pane glass-pane--telemetry">
+                  <div className="pane-head">
+                    <h2>Global domain telemetry</h2>
+                    <span>Interactive · click pins · drag to rotate · scroll to zoom</span>
+                  </div>
+                  <TelemetryGlobe active={hasIncident} contained={contained} expanded />
+                </section>
+              )}
+
+            </motion.div>
+          </AnimatePresence>
+        </main>
+      </div>
+
+      <FloatingCopilot incidentId={alert?.id} disabled={!hasIncident} hasIncident={hasIncident} />
     </div>
   )
 }
-
-export default App

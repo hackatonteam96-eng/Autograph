@@ -83,45 +83,68 @@ function parseKerberosEvent(raw) {
   if (!raw || typeof raw !== "object") return null;
 
   const nested = raw.data && typeof raw.data === "object" ? raw.data : {};
-  const winEvent = raw.win || raw.event || nested.win || nested.event || {};
-  const eventData = raw.EventData || winEvent.EventData || nested.EventData || {};
+  const win = nested.win && typeof nested.win === "object" ? nested.win : {};
+  const winEvent = raw.win || raw.event || nested.win || nested.event || win || {};
+  const system = winEvent.system || winEvent.System || win.system || win.System || {};
+  const eventData =
+    raw.EventData ||
+    winEvent.EventData ||
+    winEvent.eventdata ||
+    nested.EventData ||
+    nested.eventdata ||
+    win.eventdata ||
+    win.EventData ||
+    {};
+
+  const rule = raw.rule && typeof raw.rule === "object" ? raw.rule : {};
+  const mitreIds = []
+    .concat(rule.mitre?.id || rule.mitre?.technique || [])
+    .flat()
+    .map(String);
 
   const eventId = Number(
     pickField(raw, "event_id", "EventID", "eventId") ||
       pickField(nested, "event_id", "EventID") ||
+      pickField(system, "eventID", "EventID", "event_id") ||
       pickField(winEvent, "System", "EventID") ||
       pickField(eventData, "EventID")
   );
 
-  if (eventId !== KERBEROS_EVENT_ID) return null;
+  const isKerberosRule =
+    mitreIds.some((id) => id.includes("T1558")) ||
+    String(rule.description || "").toLowerCase().includes("kerberoast");
+
+  if (eventId !== KERBEROS_EVENT_ID && !isKerberosRule) return null;
 
   const serviceName = String(
     pickField(raw, "service_name", "ServiceName", "service") ||
-      pickField(eventData, "ServiceName", "Service") ||
-      pickField(nested, "ServiceName")
+      pickField(eventData, "ServiceName", "serviceName", "Service") ||
+      pickField(nested, "ServiceName", "serviceName")
   );
 
   const encryptionType =
     pickField(raw, "ticket_encryption_type", "TicketEncryptionType", "encryption_type") ||
-    pickField(eventData, "TicketEncryptionType", "TicketOptions") ||
-    pickField(nested, "TicketEncryptionType");
+    pickField(eventData, "TicketEncryptionType", "ticketEncryptionType", "TicketOptions") ||
+    pickField(nested, "TicketEncryptionType", "ticketEncryptionType");
 
   const user = String(
     pickField(raw, "user", "AccountName", "TargetUserName", "SubjectUserName") ||
-      pickField(eventData, "TargetUserName", "AccountName", "SubjectUserName") ||
-      pickField(nested, "user")
+      pickField(eventData, "TargetUserName", "targetUserName", "AccountName", "accountName", "SubjectUserName") ||
+      pickField(nested, "user", "TargetUserName", "targetUserName")
   ).toLowerCase();
 
   const target = extractServiceAccount(serviceName).toLowerCase();
   const sourceIp = String(
     pickField(raw, "source_ip", "IpAddress", "ip", "source") ||
-      pickField(eventData, "IpAddress") ||
-      pickField(nested, "source_ip")
+      pickField(eventData, "IpAddress", "ipAddress") ||
+      pickField(nested, "source_ip", "IpAddress", "ipAddress") ||
+      pickField(raw.agent, "ip")
   );
   const host = String(
     pickField(raw, "host", "WorkstationName", "Computer", "hostname") ||
-      pickField(eventData, "WorkstationName") ||
-      pickField(nested, "host")
+      pickField(eventData, "WorkstationName", "workstationName", "Computer") ||
+      pickField(nested, "host", "WorkstationName", "workstationName") ||
+      pickField(raw.agent, "name")
   );
   const status = String(pickField(raw, "status", "Status") || pickField(eventData, "Status"));
 

@@ -1,0 +1,33 @@
+{
+  "timestamp": "2026-06-12T14:03:04.000Z",
+  "rule": {
+    "level": 12,
+    "description": "Possible Kerberoasting Activity",
+    "id": "100001",
+    "mitre": {
+      "id": ["T1558.003"],
+      "tactic": ["Credential Access"],
+      "technique": ["Steal or Forge Kerberos Tickets: Kerberoasting"]
+    }
+  },
+  "agent": {
+    "id": "001",
+    "name": "DC01",
+    "ip": "10.0.0.10"
+  },
+  "data": {
+    "win": {
+      "system": {
+        "eventID": "4769",
+        "computer": "DC01.corp.local"
+      },
+      "eventdata": {
+        "targetUserName": "lowpriv.user",
+        "serviceName": "MSSQLSvc/SQL-SERVER.corp.local:1433",
+        "ticketEncryptionType": "0x17",
+        "ipAddress": "10.0.0.42",
+        "status": "0x0"
+      }
+    }
+  }
+}
