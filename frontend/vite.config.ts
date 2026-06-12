@@ -9,6 +9,7 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     server: {
       port: 5173,
+      strictPort: true,
       host: '127.0.0.1',
       proxy: {
         '/api': {
@@ -16,6 +17,9 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
         },
       },
+    },
+    optimizeDeps: {
+      holdUntilCrawlEnd: true,
     },
   }
 })
