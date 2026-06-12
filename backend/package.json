@@ -1,0 +1,27 @@
+{
+  "name": "authgraph-itdr-backend",
+  "version": "1.0.0",
+  "description": "AuthGraph ITDR API — alerts, attack path, risk scoring, containment (Nazrin)",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "node test/api.test.js",
+    "test:detection": "node detection/detection.test.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.2"
+  },
+  "keywords": [
+    "itdr",
+    "kerberoasting",
+    "active-directory",
+    "authgraph"
+  ],
+  "author": "Nazrin — AuthGraph ITDR Backend Team",
+  "license": "MIT"
+}
