@@ -35,7 +35,7 @@ import {
 import * as THREE from 'three'
 import RepositoryGlobe from './RepositoryGlobe'
 import { api, type Alert, type AttackPath } from './api/client'
-import fallbackPath from '../../data/attack-path.json'
+import fallbackPath from './data/attack-path.json'
 
 type PathNode = AttackPath['nodes'][number]
 type AttackNodeData = PathNode & { active?: boolean; contained?: boolean; live?: boolean }
