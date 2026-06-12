@@ -1,9 +1,109 @@
-import { Suspense, useEffect, useMemo, useRef } from 'react'
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas, useFrame, useLoader } from '@react-three/fiber'
-import { OrbitControls, Stars } from '@react-three/drei'
+import { OrbitControls } from '@react-three/drei'
 import * as THREE from 'three'
 
-function EarthSphere({ active, contained }: { active: boolean; contained: boolean }) {
+type RawGlobePoint = { lon: number; lat: number; type: string }
+type GlobeData = { meta?: { landDotsColor?: string; oceanDotsColor?: string }; points: RawGlobePoint[] }
+
+function toSpherePosition(lon: number, lat: number, radius = 2): [number, number, number] {
+  const phi = (90 - lat) * (Math.PI / 180)
+  const theta = (lon + 180) * (Math.PI / 180)
+
+  return [
+    -radius * Math.sin(phi) * Math.cos(theta),
+    radius * Math.cos(phi),
+    radius * Math.sin(phi) * Math.sin(theta),
+  ]
+}
+
+function GlobePointLayer({ active, contained, expanded }: { active: boolean; contained: boolean; expanded: boolean }) {
+  const [pointData, setPointData] = useState<GlobeData | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+
+    fetch('/data/globe-points.json')
+      .then((response) => response.json())
+      .then((data: GlobeData) => {
+        if (!cancelled) setPointData(data)
+      })
+      .catch(() => undefined)
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const geometry = useMemo(() => {
+    if (!pointData) return null
+
+    const sampleEvery = expanded ? 30 : 78
+    const positions: number[] = []
+    const colors: number[] = []
+    const normal = new THREE.Color(contained ? '#52e0c4' : '#79c9ff')
+    const quiet = new THREE.Color('#6f7d91')
+    const danger = new THREE.Color(active && !contained ? '#ff5c70' : '#52e0c4')
+
+    pointData.points.forEach((point, index) => {
+      if (point.type !== 'land' || index % sampleEvery !== 0) return
+
+      const position = toSpherePosition(point.lon, point.lat, 2.025)
+      const isSignalPoint = index % 131 === 0
+      positions.push(position[0], position[1], position[2])
+
+      const color = isSignalPoint ? danger : index % 7 === 0 ? normal : quiet
+      colors.push(color.r, color.g, color.b)
+    })
+
+    const buffer = new THREE.BufferGeometry()
+    buffer.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
+    buffer.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3))
+    return buffer
+  }, [active, contained, expanded, pointData])
+
+  const material = useMemo(
+    () =>
+      new THREE.PointsMaterial({
+        size: expanded ? 0.018 : 0.015,
+        vertexColors: true,
+        transparent: true,
+        opacity: expanded ? 0.78 : 0.58,
+        sizeAttenuation: true,
+        depthWrite: false,
+      }),
+    [expanded],
+  )
+
+  if (!geometry) return null
+
+  return <points geometry={geometry} material={material} />
+}
+
+function AttackTrace({ active, contained }: { active: boolean; contained: boolean }) {
+  const geometry = useMemo(() => {
+    const curve = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(-1.54, 0.74, 1.09),
+      new THREE.Vector3(-0.58, 1.82, 0.84),
+      new THREE.Vector3(0.9, 0.92, 1.42),
+    ])
+    return new THREE.BufferGeometry().setFromPoints(curve.getPoints(72))
+  }, [])
+  const trace = useMemo(
+    () => new THREE.Line(geometry, new THREE.LineBasicMaterial({ transparent: true, opacity: active ? 0.7 : 0.16 })),
+    [active, geometry],
+  )
+
+  useFrame(({ clock }) => {
+    const material = trace.material as THREE.LineBasicMaterial
+    material.opacity = active ? 0.54 + Math.sin(clock.elapsedTime * 2.2) * 0.16 : 0.16
+    material.color.set(contained ? '#52e0c4' : active ? '#ff5c70' : '#7f8da3')
+  })
+
+  return <primitive object={trace} />
+}
+
+function Earth({ active, contained, expanded }: { active: boolean; contained: boolean; expanded: boolean }) {
   const groupRef = useRef<THREE.Group>(null)
   const cloudsRef = useRef<THREE.Mesh>(null)
   const [earthMap, nightMap, cloudsMap] = useLoader(THREE.TextureLoader, [
@@ -13,134 +113,73 @@ function EarthSphere({ active, contained }: { active: boolean; contained: boolea
   ])
 
   useEffect(() => {
-    for (const tex of [earthMap, nightMap, cloudsMap]) {
-      tex.colorSpace = THREE.SRGBColorSpace
-      tex.anisotropy = 8
-    }
+    earthMap.colorSpace = THREE.SRGBColorSpace
+    nightMap.colorSpace = THREE.SRGBColorSpace
+    cloudsMap.colorSpace = THREE.SRGBColorSpace
   }, [cloudsMap, earthMap, nightMap])
 
-  useFrame((_, delta) => {
-    if (groupRef.current) groupRef.current.rotation.y += delta * 0.08
-    if (cloudsRef.current) cloudsRef.current.rotation.y += delta * 0.05
+  useFrame(() => {
+    if (groupRef.current) groupRef.current.rotation.y += expanded ? 0.0016 : 0.001
+    if (cloudsRef.current) cloudsRef.current.rotation.y += 0.0007
   })
 
-  const emissive = contained ? '#0bd3b1' : active ? '#ff7a59' : '#5a9fd4'
-  const emissiveIntensity = active ? 0.55 : 0.28
-
   return (
-    <group ref={groupRef} rotation={[0.18, 2.4, 0]}>
+    <group ref={groupRef} rotation={[0.14, 2.15, -0.08]}>
       <mesh>
-        <sphereGeometry args={[1.6, 64, 64]} />
+        <sphereGeometry args={[2, 112, 112]} />
         <meshStandardMaterial
           map={earthMap}
           emissiveMap={nightMap}
-          emissive={new THREE.Color(emissive)}
-          emissiveIntensity={emissiveIntensity}
-          roughness={0.92}
-          metalness={0.02}
+          emissive={contained ? '#0bd3b1' : active ? '#ff9a66' : '#8bbfff'}
+          emissiveIntensity={active ? 0.8 : 0.34}
+          roughness={0.86}
+          metalness={0}
         />
       </mesh>
       <mesh ref={cloudsRef}>
-        <sphereGeometry args={[1.625, 48, 48]} />
+        <sphereGeometry args={[2.028, 96, 96]} />
         <meshPhongMaterial
           map={cloudsMap}
+          alphaMap={cloudsMap}
           transparent
-          opacity={0.14}
+          opacity={expanded ? 0.18 : 0.1}
           depthWrite={false}
         />
       </mesh>
       <mesh>
-        <sphereGeometry args={[1.68, 48, 48]} />
-        <meshBasicMaterial color="#4dd4ff" transparent opacity={0.06} side={THREE.BackSide} />
+        <sphereGeometry args={[2.075, 96, 96]} />
+        <meshBasicMaterial color="#63d7ff" transparent opacity={expanded ? 0.09 : 0.055} side={THREE.BackSide} />
       </mesh>
+      <GlobePointLayer active={active} contained={contained} expanded={expanded} />
+      <AttackTrace active={active} contained={contained} />
     </group>
   )
 }
 
-function ThreatArc({ active, contained }: { active: boolean; contained: boolean }) {
-  const lineRef = useRef<THREE.Line>(null)
-
-  const line = useMemo(() => {
-    const curve = new THREE.CatmullRomCurve3([
-      new THREE.Vector3(-1.2, 0.5, 1.1),
-      new THREE.Vector3(-0.3, 1.4, 0.9),
-      new THREE.Vector3(0.85, 0.7, 1.2),
-    ])
-    const geometry = new THREE.BufferGeometry().setFromPoints(curve.getPoints(48))
-    return new THREE.Line(geometry, new THREE.LineBasicMaterial({ transparent: true }))
-  }, [])
-
-  useFrame(({ clock }) => {
-    const mat = lineRef.current?.material as THREE.LineBasicMaterial | undefined
-    if (!mat) return
-    mat.color.set(contained ? '#52e0c4' : active ? '#ff5c70' : '#5a7088')
-    mat.opacity = active ? 0.45 + Math.sin(clock.elapsedTime * 2) * 0.2 : 0.12
-  })
-
-  return <primitive ref={lineRef} object={line} />
-}
-
-function ThreatPin({ lon, lat, color, size = 0.04 }: { lon: number; lat: number; color: string; size?: number }) {
-  const phi = (90 - lat) * (Math.PI / 180)
-  const theta = (lon + 180) * (Math.PI / 180)
-  const r = 1.65
-  const x = -r * Math.sin(phi) * Math.cos(theta)
-  const y = r * Math.cos(phi)
-  const z = r * Math.sin(phi) * Math.sin(theta)
-
-  return (
-    <mesh position={[x, y, z]}>
-      <sphereGeometry args={[size, 16, 16]} />
-      <meshBasicMaterial color={color} />
-    </mesh>
-  )
-}
-
-function Scene({ active, contained, expanded }: { active: boolean; contained: boolean; expanded: boolean }) {
-  return (
-    <>
-      <color attach="background" args={['#0a1219']} />
-      <ambientLight intensity={1.4} color="#b8d4ff" />
-      <directionalLight intensity={2.8} color="#ffffff" position={[4, 2, 5]} />
-      <pointLight intensity={active ? 2.5 : 0.8} color={contained ? '#52e0c4' : '#ff8b6b'} position={[-3, 1, 2]} />
-      <EarthSphere active={active} contained={contained} />
-      <ThreatArc active={active} contained={contained} />
-      <ThreatPin lon={49.8} lat={40.4} color={active && !contained ? '#ff5c70' : '#52e0c4'} size={expanded ? 0.05 : 0.035} />
-      <ThreatPin lon={-77.0} lat={38.9} color="#52e0c4" size={expanded ? 0.04 : 0.028} />
-      {expanded && <Stars radius={80} depth={40} count={1200} factor={3} saturation={0} fade speed={0.4} />}
-      <OrbitControls
-        enablePan={false}
-        enableZoom={expanded}
-        enableRotate={expanded}
-        autoRotate={!expanded}
-        autoRotateSpeed={0.5}
-        minDistance={3.2}
-        maxDistance={6}
-      />
-    </>
-  )
-}
-
-export default function RepositoryGlobe({
-  active,
-  contained,
-  expanded,
-}: {
-  active: boolean
-  contained: boolean
-  expanded: boolean
-}) {
+export default function RepositoryGlobe({ active, contained, expanded }: { active: boolean; contained: boolean; expanded: boolean }) {
   return (
     <div className="globe-canvas">
       <Canvas
-        camera={{ position: [0, 0, 4.2], fov: 42 }}
-        dpr={[1, 2]}
+        camera={{ position: [0, 0, expanded ? 5.65 : 5.35], fov: expanded ? 35 : 40 }}
+        dpr={[1, 1.75]}
         gl={{ alpha: true, antialias: true, powerPreference: 'high-performance' }}
-        style={{ width: '100%', height: '100%', display: 'block' }}
       >
+        <ambientLight color="#c7ddff" intensity={2.2} />
+        <directionalLight color="#ffffff" intensity={4.6} position={[3.8, 2.4, 5]} />
+        <hemisphereLight color="#d9f2ff" groundColor="#1c3858" intensity={1.25} />
+        <pointLight color={contained ? '#52e0c4' : '#ff8b6b'} intensity={active ? 3.2 : 1.2} position={[-3, 1, 3]} />
         <Suspense fallback={null}>
-          <Scene active={active} contained={contained} expanded={expanded} />
+          <Earth active={active} contained={contained} expanded={expanded} />
         </Suspense>
+        <OrbitControls
+          enablePan={false}
+          enableZoom={expanded}
+          enableRotate={expanded}
+          autoRotate={!expanded}
+          autoRotateSpeed={0.34}
+          minDistance={4.2}
+          maxDistance={7}
+        />
       </Canvas>
     </div>
   )
