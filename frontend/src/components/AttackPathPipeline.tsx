@@ -66,7 +66,6 @@ export default function AttackPathPipeline({
               >
                 <div className="pipeline__node-icon" style={{ color: meta.color }}>
                   <Icon size={20} weight="duotone" />
-                  {isHot && !contained && <span className="pipeline__node-pulse" />}
                 </div>
                 <div className="pipeline__node-copy">
                   <strong title={node.id}>{SHORT[node.id] ?? node.id}</strong>

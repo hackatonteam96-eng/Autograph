@@ -2,7 +2,7 @@
   "incidents": {
     "alert-001": {
       "status": "contained",
-      "contained_at": "2026-06-13T03:36:52.104Z",
+      "contained_at": "2026-06-13T05:40:16.644Z",
       "risk_before": 87,
       "risk_after": 32,
       "approved_actions": [
@@ -17,15 +17,15 @@
           "action": "Reset service account password",
           "playbook_id": "rotate_service_password",
           "description": "Force password rotation on targeted service account",
-          "command": "Set-ADAccountPassword -Identity 'svc-sql' -Reset -PassThru | Set-ADUser -ChangePasswordAtLogon $true",
+          "command": "$newPwd = ConvertTo-SecureString -AsPlainText (([guid]::NewGuid().ToString('N') + 'Aa1!').Substring(0,16)) -Force\nSet-ADAccountPassword -Identity 'svc-sql' -Reset -NewPassword $newPwd -Server 'SERVER01'\nSet-ADUser -Identity 'svc-sql' -ChangePasswordAtLogon $true -Server 'SERVER01'",
           "status": "simulated",
           "message": "Dry-run — set LAB_AD_ENABLED=true in backend/.env for live AD execution"
         },
         {
           "action": "Disable RC4 Kerberos encryption",
           "playbook_id": "rc4_hardening",
-          "description": "Recommend/disable RC4 Kerberos encryption domain-wide",
-          "command": "Set-ADDomain -Replace @{'msDS-SupportedEncryptionTypes'='24'} # AES only — lab GPO equivalent",
+          "description": "Disable RC4 Kerberos encryption domain-wide (AES128+256 only)",
+          "command": "Set-ADDomain -Identity 'SERVER01' -Replace @{'msDS-SupportedEncryptionTypes'='24'} -Server 'SERVER01'",
           "status": "simulated",
           "message": "Dry-run — set LAB_AD_ENABLED=true in backend/.env for live AD execution"
         },
@@ -33,15 +33,15 @@
           "action": "Review SPN ownership",
           "playbook_id": "review_spn",
           "description": "Review and remove exposed SPN from service account",
-          "command": "Set-ADUser -Identity 'svc-sql' -ServicePrincipalNames @{} # Review before apply",
+          "command": "Get-ADUser -Identity 'svc-sql' -Properties ServicePrincipalName -Server 'SERVER01' | Select-Object Name,SamAccountName,ServicePrincipalName\n# Remove exposed SPN after review:\n# Set-ADUser -Identity 'svc-sql' -ServicePrincipalNames @{} -Server 'SERVER01'",
           "status": "simulated",
           "message": "Dry-run — set LAB_AD_ENABLED=true in backend/.env for live AD execution"
         },
         {
           "action": "Investigate source user session",
           "playbook_id": "revoke_sessions",
-          "description": "Revoke active sessions for source user",
-          "command": "Get-ADUser 'lab.test@autograph.lab' | Revoke-ADUserAllCertificates; # + force logoff via SOAR",
+          "description": "Investigate and revoke active sessions for source user",
+          "command": "Get-ADUser -Identity 'lab.test' -Properties LastLogonDate,LockedOut -Server 'SERVER01' | Format-List\n# Force logoff via SOAR / Reset-ComputerMachinePassword if needed",
           "status": "simulated",
           "message": "Dry-run — set LAB_AD_ENABLED=true in backend/.env for live AD execution"
         },
@@ -49,7 +49,7 @@
           "action": "Rotate credentials for exposed service account",
           "playbook_id": "rotate_service_password",
           "description": "Force password rotation on targeted service account",
-          "command": "Set-ADAccountPassword -Identity 'svc-sql' -Reset -PassThru | Set-ADUser -ChangePasswordAtLogon $true",
+          "command": "$newPwd = ConvertTo-SecureString -AsPlainText (([guid]::NewGuid().ToString('N') + 'Aa1!').Substring(0,16)) -Force\nSet-ADAccountPassword -Identity 'svc-sql' -Reset -NewPassword $newPwd -Server 'SERVER01'\nSet-ADUser -Identity 'svc-sql' -ChangePasswordAtLogon $true -Server 'SERVER01'",
           "status": "simulated",
           "message": "Dry-run — set LAB_AD_ENABLED=true in backend/.env for live AD execution"
         }

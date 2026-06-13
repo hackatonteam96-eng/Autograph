@@ -1,6 +1,6 @@
 const fs = require("fs");
 const path = require("path");
-const { DATA_DIR } = require("../config");
+const { DATA_DIR, ITDR_REPORT_AUTO } = require("../config");
 const { appendEvent } = require("../services/eventLog");
 const {
   enrichAlerts,
@@ -8,7 +8,7 @@ const {
   ingestWazuh,
   explain: explainAlert,
 } = require("../../detection/integration");
-const { isKerberoastingAlert, classifyWazuhPayload, webhookPreview } = require("../../detection/wazuh_filter");
+const { isItdrAlert, classifyWazuhPayload, webhookPreview } = require("../../detection/wazuh_filter");
 
 const { buildAttackPathFromAlert } = require("../utils/attackPathBuilder");
 
@@ -121,11 +121,23 @@ class DataStore {
     const idx = history.findIndex((a) => a.id === alert.id);
     const isNew = idx < 0;
     const prev = idx >= 0 ? history[idx] : {};
+    const incomingRisk = alert.risk != null ? Number(alert.risk) : null;
+    const prevRisk = prev.canonical_risk != null ? Number(prev.canonical_risk) : null;
+    let canonicalRisk = prevRisk;
+    if (incomingRisk != null) {
+      canonicalRisk = prevRisk != null ? Math.max(prevRisk, incomingRisk) : incomingRisk;
+    }
+    const ingestSource =
+      meta.ingest_source === "webhook" || prev.ingest_source === "webhook"
+        ? "webhook"
+        : meta.ingest_source || prev.ingest_source || "sample";
     const entry = {
       ...prev,
       ...alert,
+      risk: canonicalRisk ?? alert.risk,
+      canonical_risk: canonicalRisk,
       ingested_at: new Date().toISOString(),
-      ingest_source: meta.ingest_source || prev.ingest_source || "sample",
+      ingest_source: ingestSource,
       last_webhook_at:
         meta.ingest_source === "webhook"
           ? new Date().toISOString()
@@ -157,7 +169,7 @@ class DataStore {
           console.warn(`[dataStore] Removing stale non-ITDR wazuh capture: ${classification.reason}`);
           try { fs.unlinkSync(this.wazuhRealPath); } catch { /* ignore */ }
         } else {
-          wazuhAlerts = ingestWazuh(list, DATA_DIR).filter(isKerberoastingAlert);
+          wazuhAlerts = ingestWazuh(list, DATA_DIR).filter(isItdrAlert);
         }
       }
     }
@@ -194,9 +206,12 @@ class DataStore {
   }
 
   getIncidents() {
+    const score = (x) => new Date(x.last_webhook_at || x.time || 0).getTime();
     const alerts = [...this.getAlerts()].sort((a, b) => {
-      const rank = (x) => (isKerberoastingAlert(x) ? 0 : 1);
-      return rank(a) - rank(b);
+      const rank = (x) => (isItdrAlert(x) ? 0 : 1);
+      const dr = rank(a) - rank(b);
+      if (dr !== 0) return dr;
+      return score(b) - score(a);
     });
     return alerts.map((alert) => ({
       ...alert,
@@ -207,13 +222,19 @@ class DataStore {
   }
 
   getPrimaryItdrAlert() {
+    const score = (x) => new Date(x.last_webhook_at || x.time || 0).getTime();
+    const webhook = this.getAlerts()
+      .filter((a) => a.ingest_source === "webhook" && isItdrAlert(a))
+      .sort((a, b) => {
+        if (a.status !== b.status) {
+          if (a.status === "contained") return 1;
+          if (b.status === "contained") return -1;
+        }
+        return score(b) - score(a);
+      });
+    if (webhook.length) return webhook[0];
     const alerts = this.getAlerts();
-    return (
-      alerts.find((a) => a.ingest_source === "webhook" && isKerberoastingAlert(a)) ||
-      alerts.find(isKerberoastingAlert) ||
-      alerts[0] ||
-      null
-    );
+    return alerts.find(isItdrAlert) || alerts[0] || null;
   }
 
   getAlertById(incidentId) {
@@ -229,13 +250,20 @@ class DataStore {
     const ai = this.aiEnrichment.get(alert.id);
     const hist = this.historyMeta(alert.id);
     const contained = state?.status === "contained";
+    const isWebhook = hist?.ingest_source === "webhook";
+    const simActive = this.simulation.active && !isWebhook;
     const simRisk = this.getSimulatedRisk();
-    const simActive = this.simulation.active && hist?.ingest_source !== "webhook";
+    const baseRisk = hist?.canonical_risk ?? alert.risk;
 
     return {
       ...alert,
       status: state?.status || (simActive ? "correlating" : "open"),
-      risk: contained ? (state.risk_after ?? alert.risk) : simActive ? simRisk : alert.risk,
+      risk: contained
+        ? (state.risk_after ?? 32)
+        : simActive
+          ? simRisk
+          : baseRisk,
+      risk_before: contained ? (state.risk_before ?? baseRisk) : undefined,
       contained_at: state?.contained_at || null,
       simulation_active: simActive,
       demo_step: simActive ? this.getDemoStep() : alert.demo_step ?? 0,
@@ -279,7 +307,7 @@ class DataStore {
   }
 
   triggerKerberoastSimulation() {
-    const alert = this.getAlerts().find((a) => a.ingest_source === "webhook") || this.getPrimaryItdrAlert();
+    const alert = this.getPrimaryItdrAlert();
     if (!alert) {
       return {
         ok: false,
@@ -287,18 +315,37 @@ class DataStore {
       };
     }
 
+    const hist = this.historyMeta(alert.id);
+    const isWebhook = alert.ingest_source === "webhook" || hist?.ingest_source === "webhook";
+
+    if (isWebhook) {
+      this.aiEnrichment.delete(alert.id);
+      this.startAiEnrichment(alert.id);
+      appendEvent("system", "Re-analyzing live Wazuh alert with ARIA", {
+        incident_id: alert.id,
+        user: alert.user,
+        target: alert.target,
+      });
+      return {
+        ok: true,
+        message: "Re-analyzing live alert",
+        incident: this.getAlertById(alert.id),
+        status: { active: false, step: 0, risk: hist?.canonical_risk ?? alert.risk, timeline_count: 0 },
+      };
+    }
+
     this.simulation = { active: true, step: 0, startedAt: Date.now(), risk: alert.risk ?? 12 };
     this.upsertAlertHistory(alert, { ingest_source: "simulation" });
     this.startAiEnrichment(alert.id);
-    appendEvent("system", "Re-analyzing live Wazuh alert with ARIA", {
+    appendEvent("system", "Kerberoast simulation started", {
       incident_id: alert.id,
       user: alert.user,
       target: alert.target,
     });
     return {
       ok: true,
-      message: "Re-analyzing live alert",
-      incident: alert,
+      message: "Simulation started",
+      incident: this.getAlertById(alert.id),
       status: this.getSimulationStatus(),
     };
   }
@@ -340,6 +387,14 @@ class DataStore {
           actions: result.actions?.length ?? 0,
         });
         console.log(`[ai] Enriched ${incidentId} — flash verdict + pro actions`);
+
+        if (ITDR_REPORT_AUTO) {
+          const hist = this.historyMeta(incidentId);
+          if (hist?.ingest_source === "webhook") {
+            const { queueIncidentReport } = require("../services/incidentReport");
+            queueIncidentReport(this, incidentId);
+          }
+        }
       })
       .catch((err) => {
         console.warn(`[ai] Enrichment failed for ${incidentId}:`, err.message);
@@ -354,6 +409,12 @@ class DataStore {
 
   getAiEnrichment(incidentId) {
     return this.aiEnrichment.get(incidentId) || null;
+  }
+
+  setReportMeta(incidentId, reportMeta) {
+    const existing = this.aiEnrichment.get(incidentId) || {};
+    this.aiEnrichment.set(incidentId, { ...existing, report: reportMeta });
+    this.persistState();
   }
 
   ingestWebhook(payload) {
@@ -383,29 +444,30 @@ class DataStore {
       }
 
       fs.writeFileSync(this.wazuhRealPath, JSON.stringify(list.length === 1 ? list[0] : list, null, 2));
-      const ingested = ingestWazuh(list, DATA_DIR).filter(isKerberoastingAlert);
+      const ingested = ingestWazuh(list, DATA_DIR).filter(isItdrAlert);
       if (ingested.length === 0) {
         try { fs.unlinkSync(this.wazuhRealPath); } catch { /* ignore */ }
-        appendEvent("warn", "Webhook accepted but could not parse Kerberoasting alert", {
+        appendEvent("warn", "Webhook accepted but could not parse ITDR alert", {
           preview: list[0] ? webhookPreview(list[0]) : "",
         });
-        return { ok: false, error: "Could not parse Kerberoasting alert from Wazuh payload" };
+        return { ok: false, error: "Could not parse ITDR alert from Wazuh payload" };
       }
       this.simulation = { active: false, step: 0, startedAt: null, risk: ingested[0].risk ?? 87 };
       const incident = ingested[0];
       const { isNew } = this.upsertAlertHistory(incident, { ingest_source: "webhook" });
       this.startAiEnrichment(incident.id);
       appendEvent(isNew ? "alert" : "webhook", isNew
-        ? `New Kerberoasting alert from Wazuh/Yara webhook`
+        ? `New ${incident.attack} alert from Wazuh/Yara webhook`
         : `Webhook update for existing incident ${incident.id}`, {
         incident_id: incident.id,
         user: incident.user,
         target: incident.target,
         risk: incident.risk,
         host: incident.host,
+        attack: incident.attack,
         is_new: isNew,
       });
-      console.log(`[webhook] ITDR Kerberoasting ingested risk=${incident.risk} target=${incident.target} new=${isNew}`);
+      console.log(`[webhook] ITDR ${incident.attack} ingested risk=${incident.risk} target=${incident.target} new=${isNew}`);
       return { ok: true, alerts: ingested.length, incident, itdr: true, is_new: isNew };
     } catch (err) {
       return { ok: false, error: err.message };
@@ -519,7 +581,7 @@ class DataStore {
     });
     this.persistState();
 
-    appendEvent("action", `Containment executed on ${incidentId}`, {
+    appendEvent("action", `Playbook recorded (copy-run) for ${incidentId}`, {
       incident_id: incidentId,
       actions: executedActions.length,
       mode: LAB_ENABLED ? "live" : "simulated",

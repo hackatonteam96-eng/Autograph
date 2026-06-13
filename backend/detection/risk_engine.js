@@ -127,6 +127,9 @@ function buildEvidence(indicators, context = {}) {
   } else if (indicators.privileged_link || indicators.privileged_asset_link) {
     evidence.push(EVIDENCE_MESSAGES.privileged_link);
   }
+  if (indicators.as_rep_roasting) {
+    evidence.unshift(EVIDENCE_MESSAGES.as_rep_roasting);
+  }
   if (indicators.kerberoasting && evidence.length === 0) {
     evidence.push(EVIDENCE_MESSAGES.kerberoasting);
   }
@@ -148,6 +151,15 @@ function buildEvidence(indicators, context = {}) {
 function scoreRisk(identity, indicators = {}, options = {}) {
   const breakdown = [];
   let total = 0;
+
+  if (indicators.as_rep_roasting) {
+    breakdown.push({
+      factor: "as_rep_roasting",
+      points: RISK_WEIGHTS.AS_REP_ROASTING,
+      description: "AS-REP roasting — TGT requested without Kerberos pre-authentication",
+    });
+    total += RISK_WEIGHTS.AS_REP_ROASTING;
+  }
 
   if (indicators.kerberoasting) {
     breakdown.push({
@@ -216,12 +228,16 @@ function scoreRisk(identity, indicators = {}, options = {}) {
     options
   );
 
-  let reason = "No Kerberoasting indicators for this identity";
-  if (indicators.kerberoasting || risk >= SEVERITY_THRESHOLDS.high) {
+  let reason = "No identity-threat indicators for this identity";
+  if (indicators.as_rep_roasting || indicators.kerberoasting || risk >= SEVERITY_THRESHOLDS.high) {
     reason =
       severity === "critical"
-        ? "Kerberoasting indicators detected against privileged service account"
-        : "Kerberoasting indicators detected on identity";
+        ? indicators.as_rep_roasting
+          ? "AS-REP roasting indicators detected against vulnerable account"
+          : "Kerberoasting indicators detected against privileged service account"
+        : indicators.as_rep_roasting
+          ? "AS-REP roasting indicators detected on identity"
+          : "Kerberoasting indicators detected on identity";
   } else if (risk > 0) {
     reason = `Identity appears on attack path with elevated exposure`;
   }

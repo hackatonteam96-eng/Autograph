@@ -1,6 +1,15 @@
 const express = require("express");
 const cors = require("cors");
-const { PORT, HOST, CORS_ORIGIN } = require("./config");
+const os = require("os");
+const {
+  PORT,
+  HOST,
+  CORS_ORIGIN,
+  AUTHGRAPH_LAN_HOST,
+  RESEND_API_KEY,
+  ITDR_REPORT_TO,
+  ITDR_REPORT_FROM,
+} = require("./config");
 const requestLogger = require("./middleware/requestLogger");
 const { errorHandler } = require("./middleware/errorHandler");
 
@@ -17,6 +26,8 @@ const webhookRoutes = require("./routes/webhook");
 const simulateRoutes = require("./routes/simulate");
 const verifyRoutes = require("./routes/verify");
 const logsRoutes = require("./routes/logs");
+const reportsRoutes = require("./routes/reports");
+const geoRoutes = require("./routes/geo");
 
 const app = express();
 
@@ -37,6 +48,8 @@ app.use("/api", webhookRoutes);
 app.use("/api", simulateRoutes);
 app.use("/api", verifyRoutes);
 app.use("/api", logsRoutes);
+app.use("/api", reportsRoutes);
+app.use("/api", geoRoutes);
 
 app.get("/", (_req, res) => {
   res.json({
@@ -63,6 +76,9 @@ app.get("/", (_req, res) => {
       "POST /api/simulate/reset",
       "GET /api/simulate/status",
       "GET /api/logs",
+      "GET /api/reports/config",
+      "GET /api/reports/:incidentId/preview",
+      "POST /api/reports/:incidentId/send",
     ],
   });
 });
@@ -73,11 +89,43 @@ app.use((_req, res) => {
 
 app.use(errorHandler);
 
+function lanAddresses() {
+  const addrs = new Set();
+  if (AUTHGRAPH_LAN_HOST) addrs.add(AUTHGRAPH_LAN_HOST);
+  for (const ifaces of Object.values(os.networkInterfaces())) {
+    for (const iface of ifaces || []) {
+      if (iface.family === "IPv4" && !iface.internal) addrs.add(iface.address);
+    }
+  }
+  return [...addrs];
+}
+
+function logStartupUrls() {
+  console.log(`AuthGraph ITDR API running at http://localhost:${PORT}`);
+  console.log(`Health:  http://localhost:${PORT}/api/health`);
+  console.log(`Alerts:  http://localhost:${PORT}/api/alerts`);
+  if (HOST === "0.0.0.0" || HOST === "::") {
+    for (const ip of lanAddresses()) {
+      console.log(`LAN:     http://${ip}:${PORT}/api/health`);
+      console.log(`Webhook: http://${ip}:${PORT}/api/webhook/wazuh`);
+    }
+  }
+  console.log(`Dashboard (share): http://${AUTHGRAPH_LAN_HOST || "YOUR_LAN_IP"}:5173`);
+  if (RESEND_API_KEY && ITDR_REPORT_TO) {
+    const sandbox = (ITDR_REPORT_FROM || "").includes("onboarding@resend.dev");
+    if (sandbox) {
+      console.log(
+        `[report] Resend SANDBOX — incident emails deliver only to ${ITDR_REPORT_TO} (Gmail). @vulnbase.org needs domain verification at resend.com/domains.`,
+      );
+    } else {
+      console.log(`[report] Incident emails → ${ITDR_REPORT_TO} from ${ITDR_REPORT_FROM}`);
+    }
+  }
+}
+
 if (require.main === module) {
   const server = app.listen(PORT, HOST, () => {
-    console.log(`AuthGraph ITDR API running at http://localhost:${PORT}`);
-    console.log(`Health:  http://localhost:${PORT}/api/health`);
-    console.log(`Alerts:  http://localhost:${PORT}/api/alerts`);
+    logStartupUrls();
   });
 
   function shutdown(signal) {

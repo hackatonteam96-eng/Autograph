@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import CodeBlock from './CodeBlock'
 
 type Block =
   | { type: 'p'; text: string }
@@ -94,10 +95,11 @@ export default function AriaMessageContent({ text }: { text: string }) {
       {blocks.map((block, i) => {
         if (block.type === 'code') {
           return (
-            <pre key={i} className="aria-md__code">
-              {block.lang && <span className="aria-md__code-lang">{block.lang}</span>}
-              <code>{block.text}</code>
-            </pre>
+            <CodeBlock
+              key={i}
+              code={block.text}
+              lang={block.lang || 'powershell'}
+            />
           )
         }
         if (block.type === 'h') {

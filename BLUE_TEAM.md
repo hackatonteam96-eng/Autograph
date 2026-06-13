@@ -127,27 +127,48 @@ PORT=8787
 
 ```powershell
 New-NetFirewallRule -DisplayName "AuthGraph API" -Direction Inbound -LocalPort 8787 -Protocol TCP -Action Allow
+New-NetFirewallRule -DisplayName "AuthGraph UI" -Direction Inbound -LocalPort 5173 -Protocol TCP -Action Allow
 ```
 
-### 3. Start stack
+### 3. LAN access (judges / blue team on same network)
+
+`backend/.env`:
+
+```env
+HOST=0.0.0.0
+PORT=8787
+AUTHGRAPH_LAN_HOST=10.249.162.244
+ITDR_DASHBOARD_URL=http://10.249.162.244:5173
+```
+
+Frontend dev server binds `0.0.0.0:5173` (see `frontend/vite.config.ts`). Share this URL:
+
+- **Dashboard:** http://10.249.162.244:5173  
+- **API health:** http://10.249.162.244:8787/api/health  
+- **Wazuh webhook:** http://10.249.162.244:8787/api/webhook/wazuh  
+
+On your machine you can still use http://127.0.0.1:5173 — same stack.
+
+### 4. Start stack
 
 ```powershell
 cd C:\Users\Bahadur\Autograph
 npm run dev
 ```
 
-- Frontend: http://127.0.0.1:5173  
-- Backend health: http://127.0.0.1:8787/api/health  
+- Frontend (LAN): http://10.249.162.244:5173  
+- Frontend (local): http://127.0.0.1:5173  
+- Backend health: http://10.249.162.244:8787/api/health  
 
 After a real webhook, health shows `"wazuh_real": true`.
 
-### 4. Verify incident
+### 5. Verify incident
 
 ```powershell
 curl http://127.0.0.1:8787/api/incidents
 ```
 
-### 5. Local webhook test (no Wazuh)
+### 6. Local webhook test (no Wazuh)
 
 ```powershell
 .\scripts\test-wazuh-webhook.ps1
@@ -168,6 +189,48 @@ curl http://127.0.0.1:8787/api/incidents
 
 ---
 
+## Incident email reports (Resend)
+
+AuthGraph queues an HTML incident report after ARIA enrichment (`ITDR_REPORT_AUTO=true`).
+
+### Current sandbox mode
+
+`backend/.env` uses Resend's test sender `onboarding@resend.dev`. In this mode:
+
+- Resend dashboard shows **Sent** / **Delivered**
+- Mail goes **only** to the email you used to sign up for Resend: `support.vulnbase@gmail.com`
+- Mail does **not** go to `support@vulnbase.org` (Zoho) until the domain is verified
+
+**If you see "Sent" in Resend but nothing in Zoho:** open Gmail for `support.vulnbase@gmail.com` (Inbox, Spam, Promotions).
+
+Check delivery status:
+
+```powershell
+curl http://127.0.0.1:8787/api/reports/config
+```
+
+### Production: `support@vulnbase.org`
+
+1. In [Resend → Domains](https://resend.com/domains), add **vulnbase.org**
+2. Add the DNS records Resend shows (SPF, DKIM, etc.) in **Zoho** DNS for vulnbase.org
+3. Wait until Resend shows the domain as **Verified**
+4. Update `backend/.env`:
+
+```env
+ITDR_REPORT_FROM=AuthGraph ITDR <support@vulnbase.org>
+ITDR_REPORT_TO=support@vulnbase.org
+```
+
+5. Restart the backend
+
+Manual resend for one incident:
+
+```powershell
+curl -X POST http://127.0.0.1:8787/api/reports/alert-8864a15bb1d6/send
+```
+
+---
+
 ## Troubleshooting
 
 | Symptom | Fix |
@@ -176,6 +239,8 @@ curl http://127.0.0.1:8787/api/incidents
 | Webhook 400 “Could not parse” | Send full Wazuh JSON; check `data.win.eventdata.ticketEncryptionType` = `0x17` |
 | Wazuh alert but UI empty | Bahadur check `GET /api/incidents`; backend logs `[webhook] Ingested` |
 | UI blank locally | Run `npm run dev`, hard refresh, use port **5173** only |
+| Resend “Sent” but no email | Sandbox delivers to **Gmail signup address**, not `@vulnbase.org`; check Spam |
+| “domain is not verified” | Complete Resend DNS setup for vulnbase.org before using `@vulnbase.org` |
 
 ---
 

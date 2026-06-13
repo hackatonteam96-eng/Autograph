@@ -2,6 +2,7 @@ const {
   OPENROUTER_API_KEY,
   OPENROUTER_CHAT_MODEL,
   OPENROUTER_REASONING_MODEL,
+  ITDR_DASHBOARD_URL,
 } = require("../config");
 
 const { formatAiReply } = require("./formatAiReply");
@@ -10,6 +11,8 @@ const {
   buildIncidentBlock,
   buildVerdictPrompt,
   buildContainmentPrompt,
+  pickGreetingReply,
+  isOffTopic,
   VERDICT_SYSTEM,
   CONTAINMENT_SYSTEM,
   parseJsonPayload,
@@ -21,14 +24,15 @@ const cache = new Map();
 const MODEL_FLASH = "deepseek/deepseek-v4-flash";
 const MODEL_PRO = "deepseek/deepseek-v4-pro";
 
-const GREETING_RE = /^(hi|hello|hey|yo|what'?s up|howdy|sup|hii|heyy|greetings|morning|evening|afternoon|how is it going|how'?s it going|how are you|how goes it|hows it going)\b/i;
+const GREETING_RE = /^(hi|hello|hey|yo|what'?s up|howdy|sup|hii|heyy|greetings|good morning|good afternoon|good evening|morning|evening|afternoon|how is it going|how'?s it going|how are you|how goes it|hows it going|thanks|thank you|ok|okay|cool|cheers)\b[!.,?\s]*$/i;
 
 const REASONING_RE = /\b(explain|why is|why are|why did|contain|blast radius|attack path|walk me through|step.?by.?step|what should i|priorit|audit|analyze|analyse|investigate|recommend|remediation|mitigat|reasoning|break down|assess|compare|difference|false positive|triage|executive|brief|summarize|summarise|how does|what happens|what if|who|impact|escalat|lateral|privilege|bloodhound|kerberos|4769|spn|rc4|crack|ticket|mitre|technique|playbook|first move|next step|urgent|critical)\b/i;
 
 function isGreeting(message) {
   const text = message.trim();
   if (GREETING_RE.test(text)) return true;
-  return text.length <= 22 && /^(how|hey|hi|yo|sup|what)/i.test(text);
+  if (text.length <= 28 && /^(how|hey|hi|yo|sup|hello|thanks|thank)/i.test(text)) return true;
+  return false;
 }
 
 function needsReasoning(message) {
@@ -45,7 +49,7 @@ async function callOpenRouter({ model, messages, temperature, maxTokens }) {
     headers: {
       Authorization: `Bearer ${OPENROUTER_API_KEY}`,
       "Content-Type": "application/json",
-      "HTTP-Referer": "http://localhost:5173",
+      "HTTP-Referer": ITDR_DASHBOARD_URL,
       "X-Title": "AuthGraph ITDR",
     },
     body: JSON.stringify({
@@ -81,21 +85,36 @@ function defaultActions(alert) {
 }
 
 function fallbackVerdict(alert) {
+  const attack = alert?.attack || "Identity threat";
+  const isAsRep = attack.includes("AS-REP") || alert?.mitre === "T1558.004";
   return {
-    headline: `Kerberoasting — ${alert.user} → ${alert.target}`,
-    verdict: `${alert.attack} detected: ${alert.user} requested RC4 TGS for ${alert.target} on ${alert.host}. Risk ${alert.risk}/100. Path likely leads to privileged SQL assets. Rotate the service account credential and disable the source user session immediately.`,
-    confidence: alert.risk >= 80 ? "high" : "medium",
-    urgency: alert.risk >= 70 ? "immediate" : "elevated",
-    technique: alert.mitre || "T1558.003",
+    headline: `${attack}: ${alert.user} → ${alert.target}`,
+    verdict: isAsRep
+      ? `${attack} detected: account ${alert.target} on ${alert.host} requested a Kerberos TGT without pre-authentication${alert.evidence?.some((e) => /rc4/i.test(e)) ? " using RC4 encryption" : ""}. Offline cracking is possible. Disable "Do not require Kerberos preauth" on the account, reset its password, and review accounts with pre-auth disabled.`
+      : `${attack} detected: ${alert.user} requested a crackable Kerberos ticket for ${alert.target} on ${alert.host}. Risk ${alert.risk}/100. Rotate exposed credentials and review SPN exposure immediately.`,
+    confidence: alert.risk >= 80 ? "high" : alert.risk >= 55 ? "medium" : "low",
+    urgency: alert.risk >= 70 ? "immediate" : alert.risk >= 50 ? "elevated" : "monitor",
+    technique: alert.mitre || (isAsRep ? "T1558.004" : "T1558.003"),
   };
 }
 
 function fallbackActionDetails(alert) {
-  const base = alert.response?.length ? alert.response : defaultActions(alert);
+  const isAsRep = alert?.attack?.includes("AS-REP") || alert?.mitre === "T1558.004";
+  const base = alert.response?.length
+    ? alert.response
+    : isAsRep
+      ? [
+          "Disable pre-authentication not required on target account",
+          "Reset compromised account password",
+          "Review accounts with Do not require Kerberos preauth",
+          "Disable RC4 Kerberos encryption",
+        ]
+      : defaultActions(alert);
+  const label = isAsRep ? "AS-REP roasting containment" : `${alert?.attack || "ITDR"} containment`;
   return base.slice(0, 4).map((action, i) => ({
     priority: i + 1,
     action: typeof action === "string" ? action : action.action,
-    rationale: "Standard Kerberoasting containment playbook",
+    rationale: `${label} — priority ${i + 1}`,
     owner: i === 0 ? "IAM" : i === 1 ? "AD Ops" : i === 2 ? "AD Ops" : "SOC",
   }));
 }
@@ -119,10 +138,10 @@ async function summarizeIncident(alert, extras = {}) {
     });
 
     const parsed = parseJsonPayload(text);
-    if (parsed?.verdict) {
+    if (parsed && (parsed.verdict || parsed.headline)) {
       return {
         headline: parsed.headline || fallback.headline,
-        verdict: parsed.verdict,
+        verdict: typeof parsed.verdict === "string" ? parsed.verdict : fallback.verdict,
         confidence: parsed.confidence || fallback.confidence,
         urgency: parsed.urgency || fallback.urgency,
         technique: parsed.technique || fallback.technique,
@@ -131,7 +150,9 @@ async function summarizeIncident(alert, extras = {}) {
       };
     }
 
-    return { ...fallback, verdict: text || fallback.verdict, model, source: "openrouter" };
+    if (text && !text.trim().startsWith("{")) {
+      return { ...fallback, verdict: text, model, source: "openrouter" };
+    }
   } catch (err) {
     console.warn("[openrouter summarize]", err.message);
     return { ...fallback, model: OPENROUTER_CHAT_MODEL, source: "fallback", error: err.message };
@@ -216,16 +237,48 @@ async function enrichIncidentOnIngest(alert, extras = {}) {
 
 async function chatWithAnalyst(alert, userMessage, conversationHistory = [], extras = {}) {
   const greeting = isGreeting(userMessage);
-  const reasoning = needsReasoning(userMessage);
-  const model = greeting ? OPENROUTER_CHAT_MODEL : pickChatModel(userMessage);
+  const offtopic = !greeting && isOffTopic(userMessage);
+  const reasoning = !greeting && needsReasoning(userMessage);
+  const mode = greeting ? "greeting" : offtopic ? "offtopic" : "incident";
 
-  const fallback = greeting
-    ? "Doing alright — eyes on the board. What do you need?"
-    : `Kerberoast in flight: ${alert.user} → ${alert.target}, risk ${alert.risk}. Ask me about path, blast radius, or what to contain first.`;
+  if (greeting && !OPENROUTER_API_KEY) {
+    return { reply: pickGreetingReply(), model: null };
+  }
+
+  if (greeting) {
+    try {
+      const { text, model: usedModel } = await callOpenRouter({
+        model: OPENROUTER_CHAT_MODEL,
+        temperature: 0.65,
+        maxTokens: 80,
+        messages: [
+          { role: "system", content: buildAriaSystemPrompt("greeting") },
+          {
+            role: "user",
+            content: `<mode_greeting>\nAnalyst message: ${userMessage.trim()}\n</mode_greeting>`,
+          },
+        ],
+      });
+      const reply = text?.trim();
+      if (reply && !/\b(kerberoast|risk \d|4769|mitre|incident|alert)\b/i.test(reply)) {
+        return { reply: formatAiReply(reply), model: usedModel };
+      }
+      return { reply: pickGreetingReply(), model: usedModel };
+    } catch (err) {
+      console.warn("[openrouter chat greeting]", err.message);
+      return { reply: pickGreetingReply(), model: OPENROUTER_CHAT_MODEL };
+    }
+  }
+
+  const model = pickChatModel(userMessage);
+
+  const fallback = reasoning
+    ? `Kerberoast in flight: ${alert.user} → ${alert.target}, risk ${alert.risk}. Ask me about path, blast radius, or what to contain first.`
+    : "What would you like to look at — path, containment, or executive brief?";
 
   if (!OPENROUTER_API_KEY) return { reply: fallback, model: null };
 
-  const messages = [{ role: "system", content: buildAriaSystemPrompt() }];
+  const messages = [{ role: "system", content: buildAriaSystemPrompt(mode) }];
 
   const history = Array.isArray(conversationHistory)
     ? conversationHistory.slice(-20).filter((m) => m?.role && m?.content)
@@ -234,28 +287,26 @@ async function chatWithAnalyst(alert, userMessage, conversationHistory = [], ext
   if (history.length > 0) {
     messages.push({
       role: "system",
-      content: `[THREAD: Message #${history.length + 1}. Do NOT re-introduce yourself. Build on prior answers — never repeat verbatim.]`,
+      content: `[THREAD: Message #${history.length + 1}. Build on prior answers — never repeat verbatim.]`,
     });
     for (const msg of history) {
       messages.push({ role: msg.role, content: msg.content });
     }
   }
 
-  const incidentBlock = greeting
-    ? `<BACKGROUND_ONLY_DO_NOT_RECITE_UNLESS_ASKED>\n${buildIncidentBlock(alert, extras)}\n</BACKGROUND_ONLY_DO_NOT_RECITE_UNLESS_ASKED>`
-    : buildIncidentBlock(alert, extras);
+  const incidentBlock = buildIncidentBlock(alert, extras);
 
   messages.push({
     role: "user",
-    content: `${incidentBlock}\n\nAnalyst message: ${userMessage}`,
+    content: `<mode_incident>\n${incidentBlock}\n\nAnalyst message: ${userMessage.trim()}\n</mode_incident>`,
   });
 
-  const maxTokens = greeting ? 120 : reasoning ? 550 : 320;
+  const maxTokens = reasoning ? 550 : 320;
 
   try {
     const { text, model: usedModel } = await callOpenRouter({
       model,
-      temperature: greeting ? 0.55 : reasoning ? 0.25 : 0.4,
+      temperature: reasoning ? 0.25 : 0.4,
       maxTokens,
       messages,
     });

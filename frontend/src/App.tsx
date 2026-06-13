@@ -22,12 +22,13 @@ import { motion, AnimatePresence, useMotionValue, useSpring } from 'motion/react
 import AttackGraph from './components/AttackGraph'
 import AttackPathPipeline from './components/AttackPathPipeline'
 import AskAriaButton from './components/AskAriaButton'
-import AriaMessageContent from './components/AriaMessageContent'
+import CodeBlock from './components/CodeBlock'
 import FloatingCopilot from './components/FloatingCopilot'
 import RiskPanel from './components/RiskPanel'
 import TelemetryGlobe from './components/TelemetryGlobe'
 import { api, type Alert, type AttackPath, type ContainExecution, type EventLogEntry, type ExplainResponse, type Health, type SigmaRuleMeta, type VerifyResponse } from './api/client'
 import { formatLocalTime, formatLocalDateTime, formatRelative } from './utils/time'
+import { parseStoredAiFields } from './utils/aiFields'
 import { fallbackSigmaYaml } from './data/fallbacks'
 
 type View = 'command' | 'path' | 'detection' | 'response' | 'telemetry' | 'logs'
@@ -55,22 +56,38 @@ const NAV: { id: View; label: string; icon: typeof SquaresFour }[] = [
 ]
 
 const PIPELINE = [
-  { label: 'Active Directory', sub: 'Event 4769' },
-  { label: 'Wazuh SIEM', sub: '0x17 alert' },
-  { label: 'Sigma Rule', sub: 'T1558.003' },
+  { label: 'Active Directory', sub: '4768 / 4769' },
+  { label: 'Wazuh SIEM', sub: 'ITDR rules' },
+  { label: 'Sigma Rule', sub: 'T1558.x' },
   { label: 'AuthGraph', sub: 'Correlator' },
   { label: 'ARIA AI', sub: 'v4-flash / v4-pro' },
 ]
 
-function isKerberoastAlert(a: Alert | null | undefined) {
+function isItdrAlert(a: Alert | null | undefined) {
   if (!a) return false
-  return a.attack === 'Kerberoasting' || a.mitre === 'T1558.003' || a.event_id === 4769
+  const mitre = a.mitre ?? ''
+  const attack = a.attack ?? ''
+  const eid = a.event_id ?? 0
+  return (
+    attack === 'Kerberoasting' || mitre === 'T1558.003' || eid === 4769
+    || attack === 'AS-REP Roasting' || mitre === 'T1558.004' || eid === 4768
+    || mitre.startsWith('T1558')
+  )
 }
 
 function pickPrimaryIncident(incidents: Alert[]) {
-  const live = incidents.filter((i) => i.ingest_source === 'webhook' && isKerberoastAlert(i))
+  const score = (i: Alert) => new Date(i.last_webhook_at || i.time || 0).getTime()
+  const live = incidents
+    .filter((i) => i.ingest_source === 'webhook' && isItdrAlert(i))
+    .sort((a, b) => {
+      if (a.status !== b.status) {
+        if (a.status === 'contained') return 1
+        if (b.status === 'contained') return -1
+      }
+      return score(b) - score(a)
+    })
   if (live.length) return live[0]
-  return incidents.find(isKerberoastAlert) ?? incidents[0] ?? null
+  return incidents.find(isItdrAlert) ?? incidents[0] ?? null
 }
 
 function buildTimeline(alert: Alert | null, wazuhLive: boolean) {
@@ -79,8 +96,8 @@ function buildTimeline(alert: Alert | null, wazuhLive: boolean) {
   const enriched = formatLocalTime(alert.ai_enriched_at ?? alert.last_webhook_at ?? alert.time)
   return [
     { ts: base, text: `${alert.user} authenticates to domain` },
-    { ts: base, text: `SPN target identified — ${alert.target}` },
-    { ts: base, text: `RC4 TGS burst on ${alert.host} (Event ${alert.event_id})` },
+    { ts: base, text: `Target identity — ${alert.target}` },
+    { ts: base, text: `${alert.attack} signal on ${alert.host} (Event ${alert.event_id})` },
     { ts: base, text: `Wazuh raises ${alert.attack} alert${wazuhLive ? ' · LIVE webhook' : ''}` },
     {
       ts: enriched,
@@ -111,6 +128,8 @@ function AnimatedCounter({ value }: { value: number }) {
 
 type KpiFilter = 'all' | 'open' | 'critical' | 'contained'
 
+const LOGS_PAGE_SIZE = 25
+
 export default function App() {
   const [view, setView] = useState<View>('command')
   const [connected, setConnected] = useState(false)
@@ -120,6 +139,8 @@ export default function App() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [healthData, setHealthData] = useState<Health | null>(null)
   const [eventLogs, setEventLogs] = useState<EventLogEntry[]>([])
+  const [logsTotal, setLogsTotal] = useState(0)
+  const [logsPage, setLogsPage] = useState(0)
   const [containExecution, setContainExecution] = useState<ContainExecution[]>([])
   const [containMode, setContainMode] = useState<'live' | 'simulated' | null>(null)
   const [copilotPrompt, setCopilotPrompt] = useState<{ text: string; key: number } | null>(null)
@@ -151,6 +172,7 @@ export default function App() {
   const [busy, setBusy] = useState(false)
   const [clock, setClock] = useState('')
   const [kpiFilter, setKpiFilter] = useState<KpiFilter>('all')
+  const [playbookFeedback, setPlaybookFeedback] = useState<'yes' | 'no' | null>(null)
   const lastWebhookToast = useRef<string>('')
 
   useEffect(() => {
@@ -164,10 +186,11 @@ export default function App() {
   const toastsSeen = useRef<Set<string>>(new Set())
 
   const applyAiFields = useCallback((inc: Alert) => {
-    if (inc.ai_verdict) setAiVerdict(inc.ai_verdict)
-    if (inc.ai_headline) setAiHeadline(inc.ai_headline)
-    if (inc.ai_confidence) setAiConfidence(inc.ai_confidence)
-    if (inc.ai_urgency) setAiUrgency(inc.ai_urgency)
+    const ai = parseStoredAiFields(inc)
+    if (ai.verdict) setAiVerdict(ai.verdict)
+    if (ai.headline) setAiHeadline(ai.headline)
+    if (ai.confidence) setAiConfidence(ai.confidence)
+    if (ai.urgency) setAiUrgency(ai.urgency)
     if (inc.ai_actions?.length) setAiActions(inc.ai_actions)
     if (inc.ai_action_details?.length) setAiActionDetails(inc.ai_action_details)
     if (inc.ai_status) setAiStatus(inc.ai_status)
@@ -197,10 +220,18 @@ export default function App() {
       setDemoStep(inc.demo_step ?? 0)
       setRiskScore(inc.risk)
       setTimelineCount(Math.min((inc.demo_step ?? 0) + 1, 5))
-    } else if (isKerberoastAlert(inc) && inc.risk >= 70) {
-      setDemoStep(3)
-      setRiskScore(inc.risk)
-      setTimelineCount(5)
+    } else if (isItdrAlert(inc)) {
+      setRiskScore(inc.risk ?? 12)
+      if ((inc.risk ?? 0) >= 70) {
+        setDemoStep(3)
+        setTimelineCount(5)
+      } else if ((inc.risk ?? 0) >= 50) {
+        setDemoStep(2)
+        setTimelineCount(3)
+      } else {
+        setDemoStep(1)
+        setTimelineCount(2)
+      }
     }
   }, [applyAiFields])
 
@@ -219,6 +250,14 @@ export default function App() {
     }
   }, [applyIncident, incidents])
 
+  const loadLogs = useCallback(async (page = logsPage) => {
+    try {
+      const r = await api.logs({ limit: LOGS_PAGE_SIZE, offset: page * LOGS_PAGE_SIZE })
+      setEventLogs(r.events)
+      setLogsTotal(r.total ?? r.events.length)
+    } catch { /* offline */ }
+  }, [logsPage])
+
   const refresh = useCallback(async () => {
     try {
       const [health, incidentList, path, sigma, rules, logsRes] = await Promise.all([
@@ -227,18 +266,20 @@ export default function App() {
         api.attackPath(selectedId ?? undefined),
         api.sigma(selectedSigmaId),
         api.sigmaRules(),
-        api.logs({ limit: 200 }),
+        api.logs({ limit: LOGS_PAGE_SIZE, offset: logsPage * LOGS_PAGE_SIZE }),
       ])
       setEventLogs(logsRes.events)
+      setLogsTotal(logsRes.total ?? logsRes.events.length)
       setHealthData(health)
       setConnected(health.ok)
       setWazuhLive(Boolean(health.data?.wazuh_kerberos ?? health.data?.wazuh_real))
       setAttackPath(path)
       setSigmaYaml(sigma.yaml)
       setSigmaRules(rules.rules)
-      const preferred = selectedId
-        ? incidentList.find((i) => i.id === selectedId) ?? pickPrimaryIncident(incidentList)
-        : pickPrimaryIncident(incidentList)
+      const preferred =
+        selectedId && view === 'detection'
+          ? incidentList.find((i) => i.id === selectedId) ?? pickPrimaryIncident(incidentList)
+          : pickPrimaryIncident(incidentList)
       applyIncident(preferred ?? null, incidentList)
       if (preferred) {
         markIncidentSeen(preferred.id, prevAlertId)
@@ -252,7 +293,7 @@ export default function App() {
       initialLoadDone.current = true
       setLoading(false)
     }
-  }, [applyIncident, applyAiFields, selectedSigmaId, selectedId])
+  }, [applyIncident, selectedSigmaId, selectedId, logsPage, view])
 
   useEffect(() => {
     if (!connected) return
@@ -265,11 +306,10 @@ export default function App() {
   }, [view, connected])
 
   useEffect(() => {
-    const load = () => api.logs({ limit: 200 }).then((r) => setEventLogs(r.events)).catch(() => undefined)
-    load()
-    const id = window.setInterval(load, 3000)
+    loadLogs(logsPage)
+    const id = window.setInterval(() => loadLogs(logsPage), 4000)
     return () => window.clearInterval(id)
-  }, [])
+  }, [loadLogs, logsPage])
 
   useEffect(() => {
     refresh()
@@ -286,29 +326,30 @@ export default function App() {
           setSimulating(false)
         }
         setHealthData(health)
-        api.logs({ limit: 200 }).then((r) => setEventLogs(r.events)).catch(() => undefined)
+        loadLogs(logsPage).catch(() => undefined)
         const live = pickPrimaryIncident(incidents)
         if (live) {
+          const pinnedOnDetection = Boolean(selectedId && view === 'detection')
+          const toApply = pinnedOnDetection
+            ? incidents.find((i) => i.id === selectedId) ?? live
+            : live
+
           if (
             initialLoadDone.current
             && live.ingest_source === 'webhook'
             && live.last_webhook_at
             && live.last_webhook_at !== lastWebhookToast.current
-            && isKerberoastAlert(live)
-            && live.risk >= 70
+            && isItdrAlert(live)
+            && (live.risk ?? 0) >= 50
           ) {
             lastWebhookToast.current = live.last_webhook_at
             markWebhookToastSeen(live.last_webhook_at, lastWebhookToast)
             markIncidentSeen(live.id, prevAlertId)
             showNewAlertToast(live)
           }
-          if (!selectedId || live.id === selectedId) {
-            applyIncident(live, incidents)
-            if (live.id) {
-              api.attackPath(live.id).then(setAttackPath).catch(() => undefined)
-            }
-          } else {
-            setIncidents(incidents)
+          applyIncident(toApply, incidents)
+          if (toApply.id) {
+            api.attackPath(toApply.id).then(setAttackPath).catch(() => undefined)
           }
         } else {
           setIncidents(incidents)
@@ -317,7 +358,7 @@ export default function App() {
       } catch { /* offline */ }
     }, 2000)
     return () => window.clearInterval(poll)
-  }, [refresh, showNewAlertToast, applyIncident, selectedId])
+  }, [refresh, showNewAlertToast, applyIncident, selectedId, view, logsPage])
 
   useEffect(() => {
     const tick = () => {
@@ -329,18 +370,24 @@ export default function App() {
     return () => window.clearInterval(id)
   }, [])
 
-  const hasIncident = Boolean(alert && isKerberoastAlert(alert) && ((alert.risk ?? 0) >= 50 || alert.ingest_source === 'webhook'))
+  const hasIncident = Boolean(alert && isItdrAlert(alert) && ((alert.risk ?? 0) >= 50 || alert.ingest_source === 'webhook'))
   const hasLiveWebhook = incidents.some((i) => i.ingest_source === 'webhook')
 
   useEffect(() => {
     if (view !== 'response' || !alert?.id || !hasIncident || !connected) return
     api.aiRespond(alert.id).then((r) => {
+      const ai = parseStoredAiFields({
+        ai_verdict: r.verdict ?? null,
+        ai_headline: r.headline ?? null,
+        ai_confidence: r.confidence ?? null,
+        ai_urgency: r.urgency ?? null,
+      })
       if (r.actions?.length) setAiActions(r.actions)
       if (r.action_details?.length) setAiActionDetails(r.action_details)
-      if (r.verdict) setAiVerdict(r.verdict)
-      if (r.headline) setAiHeadline(r.headline)
-      if (r.confidence) setAiConfidence(r.confidence)
-      if (r.urgency) setAiUrgency(r.urgency)
+      if (ai.verdict) setAiVerdict(ai.verdict)
+      if (ai.headline) setAiHeadline(ai.headline)
+      if (ai.confidence) setAiConfidence(ai.confidence)
+      if (ai.urgency) setAiUrgency(ai.urgency)
       if (r.ai_status) setAiStatus(r.ai_status)
     }).catch(() => undefined)
   }, [view, alert?.id, hasIncident, connected])
@@ -357,12 +404,18 @@ export default function App() {
       return
     }
     api.aiRespond(alert.id).then((r) => {
+      const ai = parseStoredAiFields({
+        ai_verdict: r.verdict ?? null,
+        ai_headline: r.headline ?? null,
+        ai_confidence: r.confidence ?? null,
+        ai_urgency: r.urgency ?? null,
+      })
       if (r.actions?.length) setAiActions(r.actions)
       if (r.action_details?.length) setAiActionDetails(r.action_details)
-      if (r.verdict) setAiVerdict(r.verdict)
-      if (r.headline) setAiHeadline(r.headline)
-      if (r.confidence) setAiConfidence(r.confidence)
-      if (r.urgency) setAiUrgency(r.urgency)
+      if (ai.verdict) setAiVerdict(ai.verdict)
+      if (ai.headline) setAiHeadline(ai.headline)
+      if (ai.confidence) setAiConfidence(ai.confidence)
+      if (ai.urgency) setAiUrgency(ai.urgency)
       if (r.ai_status) setAiStatus(r.ai_status)
     }).catch(() => undefined)
   }, [alert?.id, alert?.ai_actions, hasIncident])
@@ -388,6 +441,14 @@ export default function App() {
     return true
   })
 
+  const logsTotalPages = Math.max(1, Math.ceil(logsTotal / LOGS_PAGE_SIZE))
+  const logsPageNumbers = (() => {
+    const max = logsTotalPages
+    if (max <= 7) return Array.from({ length: max }, (_, i) => i)
+    const start = Math.max(0, Math.min(logsPage - 2, max - 5))
+    return Array.from({ length: 5 }, (_, i) => start + i)
+  })()
+
   function onKpiClick(filter: KpiFilter | 'pipeline') {
     if (filter === 'pipeline') {
       setView('logs')
@@ -397,7 +458,9 @@ export default function App() {
     setView('detection')
   }
 
-  const riskAfter = contained ? Math.min(riskScore, alert?.risk ?? 32) : riskScore
+  const riskAfter = contained
+    ? Math.min(alert?.risk ?? riskScore, 32)
+    : (alert?.risk ?? riskScore)
   const focus = focusedNode ?? alert?.target ?? attackPath?.nodes[0]?.id ?? ''
   const responseList = contained
     ? containActions
@@ -451,7 +514,8 @@ export default function App() {
       setContainActions(r.actions)
       setContainExecution(r.execution ?? [])
       setContainMode(r.mode ?? 'simulated')
-      setToast(r.mode === 'live' ? 'Containment executed on lab AD' : 'Playbook dry-run complete — see Response tab for commands')
+      setPlaybookFeedback(null)
+      setToast(r.mode === 'live' ? 'Playbook executed on lab AD' : 'Playbook logged — copy PowerShell from Response tab and run in lab AD')
       window.setTimeout(() => setToast(null), 5000)
       await refresh()
     } finally {
@@ -477,22 +541,70 @@ export default function App() {
     setBusy(true)
     try {
       await api.simulateReset()
-      setContained(false); setDemoStep(0); setRiskScore(12); setTimelineCount(0)
-      setAiActions([]); setContainActions([]); setContainExecution([]); setContainMode(null); setFocusedNode(null)
-      setAiVerdict(null); setAiHeadline(null); setAiConfidence(null); setAiUrgency(null); setAiStatus(null)
-      setApprovedActions(new Set()); prevAlertId.current = null; initialLoadDone.current = false
-      setSelectedId(null); setSimulating(false); setIncidents([])
-      try { sessionStorage.removeItem(TOAST_STORAGE_KEY); sessionStorage.removeItem(WEBHOOK_TOAST_KEY) } catch { /* ignore */ }
+      setContained(false)
+      setDemoStep(0)
+      setRiskScore(12)
+      setTimelineCount(0)
+      setContainActions([])
+      setContainExecution([])
+      setContainMode(null)
+      setPlaybookFeedback(null)
+      setFocusedNode(null)
+      setApprovedActions(new Set())
+      setAiVerdict(null)
+      setAiHeadline(null)
+      setAiConfidence(null)
+      setAiUrgency(null)
+      setAiStatus(null)
+      setAiActions([])
+      setAiActionDetails([])
+      try {
+        sessionStorage.removeItem(TOAST_STORAGE_KEY)
+        sessionStorage.removeItem(WEBHOOK_TOAST_KEY)
+      } catch { /* ignore */ }
       await refresh()
-    } finally { setBusy(false) }
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  function actionSubtext(i: number) {
+    const detail = aiActionDetails[i]
+    const attack = alert?.attack ?? 'ITDR'
+    if (detail?.rationale && !/standard kerberoasting/i.test(detail.rationale)) {
+      return `${detail.owner} · ${detail.rationale}`
+    }
+    if (detail?.owner) return `${detail.owner} · ${attack} · step ${i + 1}`
+    return `${attack} · priority ${i + 1}`
+  }
+
+  function openPlaybookRefinement() {
+    setPlaybookFeedback('no')
+    const blocks = containExecution
+      .map((ex) => `Action: ${ex.action}\n\`\`\`powershell\n${ex.command}\n\`\`\``)
+      .join('\n\n')
+    setCopilotPrompt({
+      text: `The containment playbook for ${alert?.attack ?? 'this incident'} (target ${alert?.target}, host ${alert?.host}) needs a complete rewrite.
+
+Current commands (incomplete for our lab):
+${blocks}
+
+Provide FULL copy-paste PowerShell for each action on ${alert?.host ?? 'the DC'}:
+1. Audit — show current Kerberos pre-auth / SPN / encryption settings for ${alert?.target}
+2. Contain — disable "Do not require Kerberos preauth" safely
+3. Remediate — force password reset with verification
+4. Verify — confirm the account is no longer AS-REP roastable
+
+Use separate \`\`\`powershell code blocks. Include -Server '${alert?.host ?? 'SERVER01'}' on every Set/Get-AD* command.`,
+      key: Date.now(),
+    })
   }
 
   if (loading) {
     return (
       <div className="boot">
         <div className="boot__orb" />
-        <Fingerprint size={40} weight="duotone" className="boot__icon" />
-        <strong>AuthGraph ITDR</strong>
+        <img src="/logo111.png" alt="" className="boot__logo" />
         <span>Connecting to detection pipeline…</span>
       </div>
     )
@@ -520,17 +632,19 @@ export default function App() {
       {/* topbar */}
       <header className="ag__header">
         <div className="ag__brand">
-          <div className="ag__logo"><Fingerprint size={22} weight="duotone" /></div>
-          <div>
-            <strong>AuthGraph</strong>
-            <span>ITDR · AD + Entra ID Lab</span>
-          </div>
-          {wazuhLive && <span className="ag__live-badge">LIVE WAZUH</span>}
-          {!wazuhLive && connected && simulating && <span className="ag__demo-badge">SIMULATING</span>}
-          {!wazuhLive && connected && hasIncident && !simulating && <span className="ag__demo-badge">DEMO DATA</span>}
+          <a className="ag__logo-link" href="/" aria-label="AuthGraph ITDR home">
+            <img src="/logo111.png" alt="AuthGraph" className="ag__logo-img" />
+          </a>
         </div>
 
         <div className="ag__kpis">
+          {(wazuhLive || simulating || (connected && hasIncident && !simulating)) && (
+            <div className="ag__env-status" aria-label="Environment status">
+              {wazuhLive && <span className="ag__live-badge">LIVE WAZUH</span>}
+              {!wazuhLive && connected && simulating && <span className="ag__demo-badge">SIMULATING</span>}
+              {!wazuhLive && connected && hasIncident && !simulating && <span className="ag__demo-badge">DEMO DATA</span>}
+            </div>
+          )}
           <motion.button
             type="button"
             className={`kpi kpi--click ${kpiFilter === 'open' ? 'is-active' : ''} ${openCount > 0 ? 'kpi--alert' : ''}`}
@@ -573,14 +687,20 @@ export default function App() {
         </div>
 
         <div className="ag__toolbar">
-          <button className="ag__btn ag__btn--ghost" onClick={resetDemo} disabled={busy} aria-label="Reset">
+          <button
+            className="ag__btn ag__btn--ghost"
+            onClick={resetDemo}
+            disabled={busy}
+            aria-label="Reset demo state"
+            title="Clear contained/demo flags and reload incidents (keeps live Wazuh alerts)"
+          >
             <ArrowClockwise size={14} />
           </button>
           <button
             className="ag__btn"
             onClick={runSimulation}
             disabled={busy || simulating || !hasLiveWebhook}
-            title={hasLiveWebhook ? 'Re-run ARIA analysis on the latest live Wazuh alert' : 'Waiting for a live Wazuh Kerberoasting webhook from your lab'}
+            title={hasLiveWebhook ? 'Re-run ARIA analysis on the latest live Wazuh alert' : 'Waiting for a live Wazuh ITDR webhook from your lab'}
           >
             <Play size={13} weight="fill" /> {simulating ? 'Analyzing…' : 'Re-analyze'}
           </button>
@@ -588,9 +708,9 @@ export default function App() {
             className={`ag__btn ag__btn--contain ${contained ? 'is-done' : ''}`}
             onClick={containIdentity}
             disabled={!hasIncident || contained || busy || !responseList.length || (!contained && approvedActions.size === 0 && aiActions.length > 0)}
-            title={!contained && approvedActions.size === 0 && aiActions.length > 0 ? 'Approve response actions first' : undefined}
+            title={!contained && approvedActions.size === 0 && aiActions.length > 0 ? 'Approve response actions first' : 'Copy commands from Response tab, run in lab AD, then mark playbook done'}
           >
-            <ShieldCheck size={13} /> {contained ? 'Contained' : approvedActions.size ? `Execute (${approvedActions.size})` : 'Contain'}
+            <ShieldCheck size={13} /> {contained ? 'Playbook recorded' : approvedActions.size ? `Mark done (${approvedActions.size})` : 'Response'}
           </button>
           <time className="ag__clock">{clock}</time>
         </div>
@@ -641,7 +761,7 @@ export default function App() {
                           {hasIncident && !contained
                             ? <><span className="pulse-dot" />Identity under attack</>
                             : contained
-                              ? <><ShieldCheck size={14} weight="duotone" />Threat neutralized</>
+                              ? <><ShieldCheck size={14} weight="duotone" />Playbook recorded</>
                               : <><Eye size={14} weight="duotone" />Perimeter monitoring</>
                           }
                         </div>
@@ -659,7 +779,7 @@ export default function App() {
                             <span className="cmd__mitre">MITRE <code>{alert?.mitre}</code></span>
                           </div>
                         ) : (
-                          <p className="cmd__hero-sub">Wazuh · Sigma · AuthGraph pipeline armed. Run kerberoast in lab to trigger live detection.</p>
+                          <p className="cmd__hero-sub">Wazuh · Sigma · AuthGraph pipeline armed. Run Kerberoasting or AS-REP in lab to trigger live detection.</p>
                         )}
                       </div>
 
@@ -730,7 +850,7 @@ export default function App() {
                         {aiStatus === 'pending' && !aiVerdict ? (
                           <p className="cmd__verdict-pending"><span className="pulse-dot" /> Correlating identity path and reasoning on blast radius…</p>
                         ) : aiVerdict ? (
-                          <div className="cmd__verdict-text"><AriaMessageContent text={aiVerdict} /></div>
+                          <p className="cmd__verdict-text">{aiVerdict}</p>
                         ) : (
                           <p>{`${alert?.attack}: ${alert?.user} targeting ${alert?.target}. Risk ${alert?.risk}/100 — review containment actions.`}</p>
                         )}
@@ -1071,14 +1191,14 @@ export default function App() {
               {/* ── RESPONSE ── */}
               {view === 'response' && (
                 <div className="response-layout response-layout--solo">
-                  <section className="glass-pane glass-pane--grow">
+                  <section className="glass-pane glass-pane--response glass-pane--grow">
                     <div className="pane-head">
                       <h2>Response actions</h2>
                       <span>
                         {contained
-                          ? `Executed · ${containMode === 'live' ? 'live AD' : 'playbook dry-run'}`
+                          ? `Recorded · ${containMode === 'live' ? 'live AD execution' : 'copy-run playbook'}`
                           : aiActions.length
-                            ? 'Proposed · approve then Execute'
+                            ? 'Proposed · approve, copy commands, mark done'
                             : aiStatus === 'pending'
                               ? 'ARIA generating actions…'
                               : 'Waiting for incident'}
@@ -1113,31 +1233,54 @@ export default function App() {
                           <span>{i + 1}</span>
                           <div>
                             <strong>{a}</strong>
-                            <small>
-                              {aiActionDetails[i]?.rationale
-                                ? `${aiActionDetails[i].owner} · ${aiActionDetails[i].rationale}`
-                                : `Priority ${i + 1}`}
-                            </small>
+                            <small>{actionSubtext(i)}</small>
                           </div>
                           {contained && <ShieldCheck size={16} weight="fill" className="txt-ok" />}
                           {!contained && approvedActions.has(a) && <ShieldCheck size={16} weight="duotone" className="txt-ok" />}
                         </motion.li>
                       ))}
                     </ol>
-                    {!hasIncident && <p className="hint">Run attack demo or ingest a Wazuh Kerberoasting webhook. Then approve actions and click Execute in the top bar.</p>}
+                    {!hasIncident && <p className="hint">Run an attack demo or ingest a Wazuh ITDR webhook (Kerberoasting, AS-REP, etc.). Approve actions, copy PowerShell, run in lab AD, then Mark done.</p>}
                     {contained && containExecution.length > 0 && (
                       <div className="response-exec-log">
-                        <h3>Playbook execution log</h3>
-                        <p className="hint">{containMode === 'live' ? 'Commands ran against lab AD.' : 'Dry-run mode — set LAB_AD_ENABLED=true in backend/.env for live execution.'}</p>
+                        <h3>Playbook commands</h3>
+                        <p className="hint">
+                          {containMode === 'live'
+                            ? 'Commands ran against lab AD.'
+                            : 'Copy each block into PowerShell on your domain controller. Set LAB_AD_ENABLED=true in backend/.env only if you want automated execution.'}
+                        </p>
                         <ol>
                           {containExecution.map((ex) => (
                             <li key={ex.playbook_id + ex.action} className={`response-exec-log__item response-exec-log__item--${ex.status}`}>
                               <strong>{ex.action}</strong>
-                              <code>{ex.command}</code>
-                              <span>{ex.status} — {ex.message}</span>
+                              <CodeBlock code={ex.command} lang="powershell" />
+                              <span className="response-exec-log__status">{ex.status} — {ex.message}</span>
                             </li>
                           ))}
                         </ol>
+                        {playbookFeedback === null && (
+                          <div className="response-feedback">
+                            <p>Are you satisfied with the playbook output?</p>
+                            <div className="response-feedback__actions">
+                              <button type="button" className="ag__btn" onClick={() => setPlaybookFeedback('yes')}>
+                                Yes — looks good
+                              </button>
+                              <button
+                                type="button"
+                                className="ag__btn ag__btn--ghost"
+                                onClick={openPlaybookRefinement}
+                              >
+                                No — refine with ARIA
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                        {playbookFeedback === 'yes' && (
+                          <p className="response-feedback__ok">Playbook accepted. Incident stays marked as contained in the dashboard.</p>
+                        )}
+                        {playbookFeedback === 'no' && (
+                          <p className="response-feedback__hint">ARIA opened with your refinement request — adjust commands in chat.</p>
+                        )}
                       </div>
                     )}
                   </section>
@@ -1150,27 +1293,80 @@ export default function App() {
                   <section className="glass-pane glass-pane--grow">
                     <div className="pane-head">
                       <h2>Security event log</h2>
-                      <span>{eventLogs.length} events · webhooks · containment · ARIA · system</span>
+                      <span>{logsTotal} events · page {logsPage + 1}/{logsTotalPages} · syncs every 4s</span>
                     </div>
                     <div className="logs-stream">
                       {eventLogs.length === 0
-                        ? <p className="hint">No events yet — run attack, ingest Wazuh/Yara webhook, or execute containment. Logs sync every 4s when backend is connected.</p>
+                        ? <p className="hint logs-stream__empty">No events on this page — try page 1 or run an attack / webhook.</p>
                         : eventLogs.map((ev) => (
-                          <div key={ev.id} className={`logs-stream__row logs-stream__row--${ev.level}`}>
-                            <time title={ev.ts ?? ''}>{formatLocalDateTime(ev.ts)} <em>{formatRelative(ev.ts)}</em></time>
-                            <span className={`logs-stream__level logs-stream__level--${ev.level}`}>{ev.level}</span>
-                            <span className="logs-stream__msg">{ev.message}</span>
-                            {ev.preview && <code className="logs-stream__cmd">{ev.preview}</code>}
-                            {ev.incident_id && (
-                              <button type="button" className="logs-stream__link" onClick={() => { selectIncident(ev.incident_id!); setView('detection') }}>
-                                {ev.incident_id}
-                              </button>
+                          <article key={ev.id} className={`logs-stream__row logs-stream__row--${ev.level}`}>
+                            <div className="logs-stream__head">
+                              <time title={ev.ts ?? ''}>{formatLocalDateTime(ev.ts)} <em>{formatRelative(ev.ts)}</em></time>
+                              <span className={`logs-stream__level logs-stream__level--${ev.level}`}>{ev.level}</span>
+                              <span className="logs-stream__msg">{ev.message}</span>
+                              {ev.incident_id && (
+                                <button type="button" className="logs-stream__link" onClick={() => { selectIncident(ev.incident_id!); setView('detection') }}>
+                                  {ev.incident_id}
+                                </button>
+                              )}
+                            </div>
+                            {(ev.preview || ev.command) && (
+                              <pre className="logs-stream__detail">{ev.command || ev.preview}</pre>
                             )}
-                            {ev.command && <code className="logs-stream__cmd">{ev.command}</code>}
-                          </div>
+                          </article>
                         ))
                       }
                     </div>
+                    {logsTotal > LOGS_PAGE_SIZE && (
+                      <nav className="logs-pagination" aria-label="Log pages">
+                        <button
+                          type="button"
+                          className="ag__btn ag__btn--ghost"
+                          disabled={logsPage === 0}
+                          onClick={() => setLogsPage((p) => Math.max(0, p - 1))}
+                        >
+                          Prev
+                        </button>
+                        <div className="logs-pagination__pages">
+                          {logsPageNumbers[0] > 0 && (
+                            <>
+                              <button type="button" className={`logs-pagination__num ${logsPage === 0 ? 'is-active' : ''}`} onClick={() => setLogsPage(0)}>1</button>
+                              {logsPageNumbers[0] > 1 && <span className="logs-pagination__gap">…</span>}
+                            </>
+                          )}
+                          {logsPageNumbers.map((n) => (
+                            <button
+                              key={n}
+                              type="button"
+                              className={`logs-pagination__num ${logsPage === n ? 'is-active' : ''}`}
+                              onClick={() => setLogsPage(n)}
+                            >
+                              {n + 1}
+                            </button>
+                          ))}
+                          {logsPageNumbers[logsPageNumbers.length - 1] < logsTotalPages - 1 && (
+                            <>
+                              <span className="logs-pagination__gap">…</span>
+                              <button
+                                type="button"
+                                className={`logs-pagination__num ${logsPage === logsTotalPages - 1 ? 'is-active' : ''}`}
+                                onClick={() => setLogsPage(logsTotalPages - 1)}
+                              >
+                                {logsTotalPages}
+                              </button>
+                            </>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          className="ag__btn ag__btn--ghost"
+                          disabled={logsPage + 1 >= logsTotalPages}
+                          onClick={() => setLogsPage((p) => Math.min(logsTotalPages - 1, p + 1))}
+                        >
+                          Next
+                        </button>
+                      </nav>
+                    )}
                   </section>
                 </div>
               )}

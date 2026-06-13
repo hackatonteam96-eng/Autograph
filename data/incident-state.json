@@ -1,0 +1,279 @@
+{
+  "incidents": {},
+  "ai": {
+    "alert-86e9fc3d09be": {
+      "status": "ready",
+      "headline": "Kerberoasting: desktop-ckob3kk$ targets itself via SPN on SERVER01",
+      "verdict": "The machine account desktop-ckob3kk$ requested a TGS for its own SPN-backed identity, a classic Kerberoasting indicator. This suggests an attacker who has compromised the machine is attempting to crack the service account password offline. The blast radius includes lateral movement from SERVER01 and potential privilege escalation. Immediately reset the service account password and disable RC4 encryption.",
+      "confidence": "high",
+      "urgency": "immediate",
+      "technique": "T1558.003",
+      "actions": [
+        "Reset service account password",
+        "Disable RC4 Kerberos encryption",
+        "Review SPN ownership",
+        "Investigate source user session"
+      ],
+      "action_details": [
+        {
+          "priority": 1,
+          "action": "Reset service account password",
+          "rationale": "Kerberoasting containment — priority 1",
+          "owner": "IAM"
+        },
+        {
+          "priority": 2,
+          "action": "Disable RC4 Kerberos encryption",
+          "rationale": "Kerberoasting containment — priority 2",
+          "owner": "AD Ops"
+        },
+        {
+          "priority": 3,
+          "action": "Review SPN ownership",
+          "rationale": "Kerberoasting containment — priority 3",
+          "owner": "AD Ops"
+        },
+        {
+          "priority": 4,
+          "action": "Investigate source user session",
+          "rationale": "Kerberoasting containment — priority 4",
+          "owner": "SOC"
+        }
+      ],
+      "summary_model": "deepseek/deepseek-v4-flash-20260423",
+      "actions_model": "deepseek/deepseek-v4-pro-20260423",
+      "enriched_at": "2026-06-13T07:51:43.354Z",
+      "source": "openrouter",
+      "report": {
+        "status": "sent",
+        "to": "support.vulnbase@gmail.com",
+        "subject": "[MEDIUM] AuthGraph ITDR — Kerberoasting — desktop-ckob3kk$@autograph.lab → desktop-ckob3kk$@autograph.lab",
+        "resend_id": "014b6c39-b3e9-467f-a7e0-3ee672d06a12",
+        "sent_at": "2026-06-13T07:52:06.041Z",
+        "report": {
+          "subject": "[MEDIUM] AuthGraph ITDR — Kerberoasting — desktop-ckob3kk$@autograph.lab → desktop-ckob3kk$@autograph.lab",
+          "severity_label": "MEDIUM",
+          "executive_summary": "The machine account desktop-ckob3kk$ requested a TGS for its own SPN-backed identity, a classic Kerberoasting indicator. This suggests an attacker who has compromised the machine is attempting to crack the service account password offline. The blast radius includes lateral movement from SERVER01 and potential privilege escalation. Immediately reset the service account password and disable RC4 encryption.",
+          "technical_summary": "Kerberoasting (T1558.003) on SERVER01. Event 4769. Evidence: Target account has SPN configured",
+          "mitre": {
+            "id": "T1558.003",
+            "name": "Kerberoasting",
+            "tactics": [
+              "Credential Access"
+            ]
+          },
+          "affected_identities": [
+            {
+              "role": "source",
+              "name": "desktop-ckob3kk$@autograph.lab",
+              "detail": "Suspected attacker / source account"
+            },
+            {
+              "role": "target",
+              "name": "desktop-ckob3kk$@autograph.lab",
+              "detail": "Targeted identity or SPN"
+            },
+            {
+              "role": "host",
+              "name": "SERVER01",
+              "detail": "Domain controller / source host · ::ffff:192.168.10.130"
+            }
+          ],
+          "evidence_highlights": [
+            "Target account has SPN configured"
+          ],
+          "blast_radius": "The machine account desktop-ckob3kk$ requested a TGS for its own SPN-backed identity, a classic Kerberoasting indicator. This suggests an attacker who has compromised the machine is attempting to crack the service account password offline. The blast radius includes lateral movement from SERVER01 and potential privilege escalation. Immediately reset the service account password and disable RC4 encryption.",
+          "risk_rationale": "Risk 50/100 based on detection engine scoring and identity graph context.",
+          "recommended_actions": [
+            {
+              "priority": 1,
+              "action": "Reset service account password",
+              "owner": "IAM",
+              "rationale": "Kerberoasting containment — priority 1"
+            },
+            {
+              "priority": 2,
+              "action": "Disable RC4 Kerberos encryption",
+              "owner": "AD Ops",
+              "rationale": "Kerberoasting containment — priority 2"
+            },
+            {
+              "priority": 3,
+              "action": "Review SPN ownership",
+              "owner": "AD Ops",
+              "rationale": "Kerberoasting containment — priority 3"
+            },
+            {
+              "priority": 4,
+              "action": "Investigate source user session",
+              "owner": "SOC",
+              "rationale": "Kerberoasting containment — priority 4"
+            }
+          ],
+          "timeline_utc": [
+            {
+              "label": "Detection",
+              "detail": "Kerberoasting alert ingested from Wazuh"
+            },
+            {
+              "label": "ARIA",
+              "detail": "Kerberoasting: desktop-ckob3kk$ targets itself via SPN on SERVER01"
+            }
+          ],
+          "indicators_of_compromise": [
+            "desktop-ckob3kk$@autograph.lab",
+            "desktop-ckob3kk$@autograph.lab",
+            "SERVER01",
+            "::ffff:192.168.10.130"
+          ],
+          "false_positive_notes": "",
+          "source": "openrouter",
+          "model": "deepseek/deepseek-v4-pro-20260423",
+          "raw": "{\n  \"subject\": \"[MEDIUM] AuthGraph — Kerberoasting — desktop-ckob3kk$ targets itself via SPN on SERVER01\",\n  \"severity_label\": \"MEDIUM\",\n  \"executive_summary\": \"A Kerberoasting attack was detected where the machine account desktop-ckob3kk$ requested a service ticket for its own service principal (SPN), indicating a potential compromise of the host SERVER01. If the ticket is cracked offline, the attacker could gain unauthorized access to the service account, enabling lateral movement and privileg"
+        }
+      }
+    },
+    "alert-8864a15bb1d6": {
+      "status": "ready",
+      "headline": "AS-REP Roasting on svc-backup via SERVER01",
+      "verdict": "An attacker requested a Kerberos TGT for svc-backup without pre-authentication using RC4 encryption, enabling offline password cracking. The target is a service account with a registered SPN on SERVER01, making it a high-value target for lateral movement or privilege escalation. Immediate action is required: disable 'Do not require Kerberos preauthentication' on svc-backup, reset its password, and review accounts with this setting.",
+      "confidence": "high",
+      "urgency": "immediate",
+      "technique": "T1558.004",
+      "actions": [
+        "Disable pre-authentication not required on target account",
+        "Reset compromised account password",
+        "Review accounts with Do not require Kerberos preauth",
+        "Investigate source user session"
+      ],
+      "action_details": [
+        {
+          "priority": 1,
+          "action": "Disable pre-authentication not required on target account",
+          "rationale": "AS-REP roasting containment — priority 1",
+          "owner": "IAM"
+        },
+        {
+          "priority": 2,
+          "action": "Reset compromised account password",
+          "rationale": "AS-REP roasting containment — priority 2",
+          "owner": "AD Ops"
+        },
+        {
+          "priority": 3,
+          "action": "Review accounts with Do not require Kerberos preauth",
+          "rationale": "AS-REP roasting containment — priority 3",
+          "owner": "AD Ops"
+        },
+        {
+          "priority": 4,
+          "action": "Investigate source user session",
+          "rationale": "AS-REP roasting containment — priority 4",
+          "owner": "SOC"
+        }
+      ],
+      "summary_model": "deepseek/deepseek-v4-flash-20260423",
+      "actions_model": "deepseek/deepseek-v4-pro-20260423",
+      "enriched_at": "2026-06-13T07:54:38.607Z",
+      "source": "openrouter",
+      "report": {
+        "status": "sent",
+        "to": "support.vulnbase@gmail.com",
+        "subject": "[MEDIUM] AuthGraph — AS-REP Roasting — svc-backup via SERVER01",
+        "resend_id": "74012aca-a4aa-484d-b6a1-fbbb88dfa229",
+        "sent_at": "2026-06-13T07:55:10.299Z",
+        "report": {
+          "subject": "[MEDIUM] AuthGraph — AS-REP Roasting — svc-backup via SERVER01",
+          "severity_label": "MEDIUM",
+          "executive_summary": "An attacker requested a Kerberos ticket without pre-authentication for the service account svc-backup using weak RC4 encryption. If the password is cracked offline, the attacker could compromise critical services on SERVER01 and move laterally. Immediate steps must be taken to secure the account and eliminate this exposure.",
+          "technical_summary": "A TGT request (Event 4768) was observed from source IP 192.168.10.132 for user svc-backup without Kerberos pre-authentication. The request used RC4 encryption, which enables offline password cracking. svc-backup is a service account with a registered SPN on host SERVER01, making it a high-risk target. The account has 'Do not require Kerberos preauthentication' enabled, an unsafe configuration that permits AS-REP roasting attacks. This activity is not benign; pre-authentication should be required for all accounts to prevent anonymous TGT requests.",
+          "mitre": {
+            "id": "T1558.004",
+            "name": "AS-REP Roasting",
+            "tactics": [
+              "Credential Access"
+            ]
+          },
+          "affected_identities": [
+            {
+              "role": "source",
+              "name": "svc-backup",
+              "detail": "Account from which the TGT was requested without pre-authentication"
+            },
+            {
+              "role": "target",
+              "name": "svc-backup",
+              "detail": "Service account targeted for credential theft via offline cracking"
+            },
+            {
+              "role": "host",
+              "name": "SERVER01",
+              "detail": "Host where svc-backup's SPN is registered; potential lateral movement target"
+            }
+          ],
+          "evidence_highlights": [
+            "Event ID 4768: Kerberos TGT request without pre-authentication from source IP 192.168.10.132",
+            "RC4 encryption used for ticket, enabling offline password cracking attempts",
+            "Account svc-backup has the userAccountControl flag DONT_REQ_PREAUTH set",
+            "No Sigma rule match, but indicator aligns with known AS-REP roasting tooling behavior"
+          ],
+          "blast_radius": "Compromise of svc-backup credentials would grant the attacker access to SERVER01 where its SPN is registered, and potentially other assets where the service account is used. This could lead to privilege escalation, data theft, or further lateral movement within the domain. The account's high-risk classification as a service account with SPN broadens the impact.",
+          "risk_rationale": "Risk score 55/100 (medium) is driven by three factors: AS-REP roasting exposure (+35), RC4 encryption weakness (+20), and the target being a service account with a registered SPN (+15). The incident indicates active reconnaissance or credential harvesting, though no confirmed compromise yet. The configuration is insecure and requires immediate remediation.",
+          "recommended_actions": [
+            {
+              "priority": 1,
+              "action": "Disable 'Do not require Kerberos preauthentication' on account svc-backup",
+              "owner": "AD Ops",
+              "rationale": "Eliminate the AS-REP roasting vector immediately"
+            },
+            {
+              "priority": 2,
+              "action": "Reset the password for svc-backup and any other accounts using the same credential",
+              "owner": "AD Ops",
+              "rationale": "Invalidate any credentials that may have been cracked offline"
+            },
+            {
+              "priority": 3,
+              "action": "Review all accounts with 'Do not require Kerberos preauthentication' enabled and disable where possible",
+              "owner": "IAM",
+              "rationale": "Reduce attack surface across the domain"
+            },
+            {
+              "priority": 4,
+              "action": "Investigate the source IP 192.168.10.132 for other malicious activity and block if external or unauthorized",
+              "owner": "SOC",
+              "rationale": "Determine attacker origin and prevent further access"
+            },
+            {
+              "priority": 5,
+              "action": "Disable RC4 encryption for Kerberos in domain policy unless required by legacy systems",
+              "owner": "AD Ops",
+              "rationale": "Enforce stronger encryption to mitigate offline cracking"
+            }
+          ],
+          "timeline_utc": [
+            {
+              "label": "Detection",
+              "detail": "Event ID 4768 recorded TGT request for svc-backup without pre-authentication from 192.168.10.132"
+            },
+            {
+              "label": "Correlation",
+              "detail": "ARIA engine correlated weak encryption, missing preauth, and service account SPN to identify AS-REP roasting"
+            },
+            {
+              "label": "ARIA",
+              "detail": "Incident generated; prior verdict: 'An attacker requested a Kerberos TGT for svc-backup without pre-authentication using RC4 encryption, enabling offline password cracking'"
+            }
+          ],
+          "indicators_of_compromise": [
+            "192.168.10.132",
+            "svc-backup"
+          ],
+          "false_positive_notes": "If pre-authentication was intentionally disabled for a documented legacy application with compensating controls, this could be a false positive. However, such exceptions are rare and should be verified immediately.",
+          "source": "openrouter",
+          "model": "deepseek/deepseek-v4-pro-20260423"
+        }
+      }
+    }
+  }
+}

@@ -44,11 +44,15 @@ function appendEvent(level, message, meta = {}) {
   return entry;
 }
 
-function getEvents({ limit = 100, level, incidentId } = {}) {
+function getEvents({ limit = 100, offset = 0, level, incidentId } = {}) {
   let log = readLog();
   if (level) log = log.filter((e) => e.level === level);
   if (incidentId) log = log.filter((e) => e.incident_id === incidentId);
-  return log.slice(0, Math.min(limit, MAX_ENTRIES));
+  const total = log.length;
+  const safeLimit = Math.min(Math.max(Number(limit) || 100, 1), MAX_ENTRIES);
+  const safeOffset = Math.max(Number(offset) || 0, 0);
+  const events = log.slice(safeOffset, safeOffset + safeLimit);
+  return { total, events, limit: safeLimit, offset: safeOffset };
 }
 
 function clearLog() {

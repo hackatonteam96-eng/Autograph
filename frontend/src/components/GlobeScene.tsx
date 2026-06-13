@@ -540,10 +540,10 @@ export function GlobeScene({
 
       <Starfield autoRotate={autoRotate} />
 
-      {active && from && toDc && (
+      {active && from && toDc && from.distanceTo(toDc) > 0.05 && (
         <ThreatArc active={active} contained={contained} from={from} to={toDc} />
       )}
-      {active && from && toAsset && !contained && (
+      {active && from && toAsset && !contained && from.distanceTo(toAsset) > 0.05 && (
         <ThreatArc active={active} contained={contained} from={from} to={toAsset} />
       )}
 

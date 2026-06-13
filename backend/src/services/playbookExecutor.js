@@ -8,67 +8,101 @@ const LAB_ENABLED = process.env.LAB_AD_ENABLED === "true";
 const LAB_HOST = process.env.LAB_AD_HOST || "";
 const LAB_USER = process.env.LAB_AD_USER || "";
 
+function adSamAccount(upnOrSam) {
+  const s = String(upnOrSam || "").trim();
+  if (!s) return "UNKNOWN";
+  return s.includes("@") ? s.split("@")[0] : s;
+}
+
+function buildPlaybookContext(alert = {}) {
+  const userSam = adSamAccount(alert.user);
+  const targetSam = adSamAccount(alert.target);
+  const server = LAB_HOST || alert.host || "DC01";
+  return {
+    user: userSam,
+    userUpn: alert.user || `${userSam}@lab.local`,
+    target: targetSam,
+    targetSpn: alert.target || targetSam,
+    host: alert.host || server,
+    server,
+    attack: alert.attack || "Kerberoasting",
+    risk: alert.risk ?? 0,
+    eventId: alert.event_id ?? 4769,
+  };
+}
+
+function psServerFlag(ctx) {
+  return ctx.server ? ` -Server '${ctx.server}'` : "";
+}
+
 /** Map natural-language actions to concrete playbook steps */
 const PLAYBOOK_PATTERNS = [
   {
-    test: /disable.*user|source user disabled|disable.*account/i,
+    test: /pre-auth|preauth|as-rep|asrep|do not require/i,
+    id: "disable_preauth",
+    command: (ctx) =>
+      `# 1) Audit — Kerberos pre-auth setting\nGet-ADUser -Identity '${ctx.target}' -Properties DoesNotRequirePreAuth,ServicePrincipalName,PasswordLastSet${psServerFlag(ctx)} | Format-List Name,SamAccountName,DoesNotRequirePreAuth,ServicePrincipalName,PasswordLastSet\n\n# 2) Contain — require Kerberos pre-authentication\nSet-ADAccountControl -Identity '${ctx.target}' -DoesNotRequirePreAuth $false${psServerFlag(ctx)}\n\n# 3) Verify\nGet-ADUser -Identity '${ctx.target}' -Properties DoesNotRequirePreAuth${psServerFlag(ctx)} | Select-Object Name,SamAccountName,DoesNotRequirePreAuth`,
+    description: "Audit, disable Do not require Kerberos preauthentication, and verify",
+  },
+  {
     id: "disable_source_user",
     command: (ctx) =>
-      `Disable-ADAccount -Identity '${ctx.user}'`,
+      `Disable-ADAccount -Identity '${ctx.user}'${psServerFlag(ctx)}`,
     description: "Disable compromised source user in Active Directory",
   },
   {
     test: /password|rotate|reset.*service|credential/i,
     id: "rotate_service_password",
     command: (ctx) =>
-      `Set-ADAccountPassword -Identity '${ctx.target}' -Reset -PassThru | Set-ADUser -ChangePasswordAtLogon $true`,
+      `$newPwd = ConvertTo-SecureString -AsPlainText (([guid]::NewGuid().ToString('N') + 'Aa1!').Substring(0,16)) -Force\nSet-ADAccountPassword -Identity '${ctx.target}' -Reset -NewPassword $newPwd${psServerFlag(ctx)}\nSet-ADUser -Identity '${ctx.target}' -ChangePasswordAtLogon $true${psServerFlag(ctx)}`,
     description: "Force password rotation on targeted service account",
   },
   {
     test: /rc4|encryption|kerberos hardening/i,
     id: "rc4_hardening",
-    command: () =>
-      "Set-ADDomain -Replace @{'msDS-SupportedEncryptionTypes'='24'} # AES only — lab GPO equivalent",
-    description: "Recommend/disable RC4 Kerberos encryption domain-wide",
+    command: (ctx) =>
+      `Set-ADDomain -Identity '${ctx.host.split(".")[0] || "lab"}' -Replace @{'msDS-SupportedEncryptionTypes'='24'}${psServerFlag(ctx)}`,
+    description: "Disable RC4 Kerberos encryption domain-wide (AES128+256 only)",
   },
   {
     test: /spn|service principal/i,
     id: "review_spn",
     command: (ctx) =>
-      `Set-ADUser -Identity '${ctx.target}' -ServicePrincipalNames @{} # Review before apply`,
+      `Get-ADUser -Identity '${ctx.target}' -Properties ServicePrincipalName${psServerFlag(ctx)} | Select-Object Name,SamAccountName,ServicePrincipalName\n# Remove exposed SPN after review:\n# Set-ADUser -Identity '${ctx.target}' -ServicePrincipalNames @{}${psServerFlag(ctx)}`,
     description: "Review and remove exposed SPN from service account",
   },
   {
     test: /session|revoke|sign.?out|investigate.*session/i,
     id: "revoke_sessions",
     command: (ctx) =>
-      `Get-ADUser '${ctx.user}' | Revoke-ADUserAllCertificates; # + force logoff via SOAR`,
-    description: "Revoke active sessions for source user",
+      `Get-ADUser -Identity '${ctx.user}' -Properties LastLogonDate,LockedOut${psServerFlag(ctx)} | Format-List\n# Force logoff via SOAR / Reset-ComputerMachinePassword if needed`,
+    description: "Investigate and revoke active sessions for source user",
   },
   {
     test: /ticket|soc|incident|ITDR/i,
     id: "soc_ticket",
     command: (ctx) =>
-      `# SOAR: create ticket — Kerberoasting ${ctx.user} → ${ctx.target} risk ${ctx.risk}`,
+      `# SOAR ticket — ${ctx.attack}: ${ctx.userUpn} → ${ctx.targetSpn} (risk ${ctx.risk}/100, event ${ctx.eventId})`,
     description: "Create SOC incident ticket with ITDR context",
   },
   {
     test: /contain|isolate|block/i,
     id: "generic_contain",
     command: (ctx) =>
-      `# Containment playbook — ${ctx.attack} on ${ctx.host}`,
-    description: "Generic containment step",
+      `Disable-ADAccount -Identity '${ctx.user}'${psServerFlag(ctx)}\nSet-ADAccountPassword -Identity '${ctx.target}' -Reset -NewPassword (ConvertTo-SecureString -AsPlainText (New-Guid).Guid.Substring(0,16) -Force)${psServerFlag(ctx)}`,
+    description: "Generic containment — disable source + rotate target credential",
   },
 ];
 
 function matchPlaybook(action, context) {
+  const ctx = context?.user ? context : buildPlaybookContext(context);
   for (const pattern of PLAYBOOK_PATTERNS) {
     if (pattern.test.test(action)) {
       return {
         id: pattern.id,
         action,
         description: pattern.description,
-        command: pattern.command(context),
+        command: pattern.command(ctx),
       };
     }
   }
@@ -78,6 +112,11 @@ function matchPlaybook(action, context) {
     description: "Custom approved response action",
     command: `# ${action}`,
   };
+}
+
+function previewPlaybookActions(actions, alert) {
+  const ctx = buildPlaybookContext(alert);
+  return (actions || []).map((action) => matchPlaybook(action, ctx));
 }
 
 async function runPowerShell(command) {
@@ -97,10 +136,11 @@ async function runPowerShell(command) {
  * Execute approved containment actions — live when LAB_AD_ENABLED=true, else audited dry-run.
  */
 async function executePlaybook(actions, context, incidentId) {
+  const ctx = buildPlaybookContext(context);
   const results = [];
 
   for (const action of actions) {
-    const step = matchPlaybook(action, context);
+    const step = matchPlaybook(action, ctx);
     const base = {
       action,
       playbook_id: step.id,
@@ -112,7 +152,7 @@ async function executePlaybook(actions, context, incidentId) {
       const result = {
         ...base,
         status: "simulated",
-        message: "Dry-run — set LAB_AD_ENABLED=true in backend/.env for live AD execution",
+        message: "Copy-run mode — paste commands in lab AD. Set LAB_AD_ENABLED=true for automated execution",
       };
       results.push(result);
       appendEvent("action", `Playbook dry-run: ${action}`, {
@@ -157,4 +197,10 @@ async function executePlaybook(actions, context, incidentId) {
   return results;
 }
 
-module.exports = { executePlaybook, matchPlaybook, LAB_ENABLED };
+module.exports = {
+  executePlaybook,
+  matchPlaybook,
+  previewPlaybookActions,
+  buildPlaybookContext,
+  LAB_ENABLED,
+};

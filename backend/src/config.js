@@ -30,6 +30,14 @@ const OPENROUTER_CHAT_MODEL = process.env.OPENROUTER_CHAT_MODEL || "deepseek/dee
 const OPENROUTER_REASONING_MODEL = process.env.OPENROUTER_REASONING_MODEL || "deepseek/deepseek-v4-pro";
 const SIGMA_DIR = path.resolve(__dirname, "../../sigma");
 
+const RESEND_API_KEY = process.env.RESEND_API_KEY || "";
+const ITDR_REPORT_TO = process.env.ITDR_REPORT_TO || "";
+const ITDR_REPORT_FROM = process.env.ITDR_REPORT_FROM || "AuthGraph ITDR <onboarding@resend.dev>";
+const ITDR_REPORT_AUTO = process.env.ITDR_REPORT_AUTO !== "false";
+const ITDR_DASHBOARD_URL = process.env.ITDR_DASHBOARD_URL || "http://localhost:5173";
+/** Optional LAN IP shown in startup logs and report links (e.g. 10.249.162.244) */
+const AUTHGRAPH_LAN_HOST = process.env.AUTHGRAPH_LAN_HOST || "";
+
 module.exports = {
   PORT,
   HOST,
@@ -39,4 +47,10 @@ module.exports = {
   OPENROUTER_CHAT_MODEL,
   OPENROUTER_REASONING_MODEL,
   SIGMA_DIR,
+  RESEND_API_KEY,
+  ITDR_REPORT_TO,
+  ITDR_REPORT_FROM,
+  ITDR_REPORT_AUTO,
+  ITDR_DASHBOARD_URL,
+  AUTHGRAPH_LAN_HOST,
 };

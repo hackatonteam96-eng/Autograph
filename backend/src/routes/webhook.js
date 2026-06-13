@@ -10,7 +10,7 @@ router.get("/webhook/wazuh", (_req, res) => {
     service: "AuthGraph Wazuh webhook",
     method: "POST alerts to this URL",
     endpoint: "/api/webhook/wazuh",
-    filter: "ITDR Kerberoasting / Event 4769 / T1558.003 only — sshd and syslog ignored",
+    filter: "ITDR identity threats — Kerberoasting, AS-REP, T1558.x (sshd/syslog ignored)",
   });
 });
 
@@ -23,7 +23,7 @@ router.post("/webhook/wazuh", asyncHandler((req, res) => {
     return res.json(result);
   }
   if (result.ok) {
-    console.log(`[webhook] Kerberoasting incident risk=${result.incident?.risk ?? "?"}`);
+    console.log(`[webhook] ITDR incident ${result.incident?.attack} risk=${result.incident?.risk ?? "?"}`);
   } else {
     console.warn(`[webhook] Ingest failed: ${result.error}`);
   }

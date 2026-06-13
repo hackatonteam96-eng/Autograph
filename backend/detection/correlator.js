@@ -4,10 +4,11 @@
  */
 
 const { randomUUID, createHash } = require("crypto");
-const { MITRE } = require("./constants");
+const { MITRE, AS_REP_EVENT_ID } = require("./constants");
 const { parseKerberosEvent, parseKerberosEvents } = require("./event_parser");
 const { detectKerberoasting, matchSigmaRule } = require("./sigma_matcher");
 const { scoreRisk, buildEvidence, capRisk, severityFromRisk } = require("./risk_engine");
+const { classifyWazuhItem, extractEncryptionFromRaw } = require("./wazuh_filter");
 
 const DEFAULT_RESPONSE_ACTIONS = [
   "Reset service account password",
@@ -16,6 +17,145 @@ const DEFAULT_RESPONSE_ACTIONS = [
   "Investigate source user session",
   "Rotate credentials for exposed service account",
 ];
+
+const AS_REP_RESPONSE_ACTIONS = [
+  "Disable pre-authentication not required on target account",
+  "Reset compromised account password",
+  "Review accounts with Do not require Kerberos preauth",
+  "Investigate source user session",
+  "Disable RC4 Kerberos encryption",
+];
+
+function pickField(obj, ...keys) {
+  for (const key of keys) {
+    if (obj?.[key] !== undefined && obj[key] !== null && obj[key] !== "") return obj[key];
+  }
+  return "";
+}
+
+function extractIdentityFromRaw(raw) {
+  const nested = raw.data && typeof raw.data === "object" ? raw.data : {};
+  const win = nested.win || raw.win || {};
+  const eventData = win.eventdata || win.EventData || nested.eventdata || nested.EventData || {};
+  const user = String(
+    pickField(raw, "user", "AccountName", "TargetUserName", "SubjectUserName") ||
+      pickField(eventData, "TargetUserName", "targetUserName", "AccountName", "SubjectUserName") ||
+      pickField(nested, "user", "TargetUserName", "targetUserName") ||
+      "unknown",
+  ).toLowerCase();
+  const host = String(
+    pickField(raw, "host", "WorkstationName", "Computer") ||
+      pickField(eventData, "WorkstationName", "workstationName", "Computer") ||
+      pickField(raw.agent, "name") ||
+      "unknown",
+  );
+  const sourceIp = String(
+    pickField(raw, "source_ip", "IpAddress", "ip") ||
+      pickField(eventData, "IpAddress", "ipAddress") ||
+      pickField(raw.agent, "ip") ||
+      "",
+  );
+  return { user, host, sourceIp };
+}
+
+function classifyAttackFromRaw(raw) {
+  const ruleRaw = raw.rule;
+  const desc =
+    typeof ruleRaw === "string"
+      ? ruleRaw
+      : ruleRaw?.description || raw.attack || "";
+  const d = String(desc).toLowerCase();
+  const mitreIds = []
+    .concat(ruleRaw?.mitre?.id || ruleRaw?.mitre?.technique || [])
+    .flat()
+    .map(String);
+
+  if (
+    d.includes("as-rep") ||
+    d.includes("asrep") ||
+    d.includes("as rep") ||
+    mitreIds.some((id) => id.includes("T1558.004"))
+  ) {
+    return { attack: "AS-REP Roasting", mitre: MITRE.AS_REP_ROASTING, event_id: AS_REP_EVENT_ID };
+  }
+  if (d.includes("kerberoast") || mitreIds.some((id) => id.includes("T1558.003"))) {
+    return { attack: "Kerberoasting", mitre: MITRE.KERBEROASTING, event_id: 4769 };
+  }
+  if (mitreIds.some((id) => id.startsWith("T1558"))) {
+    return { attack: "Kerberos abuse", mitre: mitreIds.find((id) => id.startsWith("T1558")) || MITRE.KERBEROASTING, event_id: 4769 };
+  }
+  return { attack: "Identity threat", mitre: MITRE.KERBEROASTING, event_id: 4769 };
+}
+
+/**
+ * Build alert from a single Wazuh item when batch Kerberos parsing fails (AS-REP, custom rules).
+ */
+function buildAlertFromWazuhItem(raw, options = {}) {
+  if (!raw || typeof raw !== "object") return null;
+  if (classifyWazuhItem(raw) !== "itdr") return null;
+
+  const { attack, mitre, event_id } = classifyAttackFromRaw(raw);
+  const { user, host, sourceIp } = extractIdentityFromRaw(raw);
+  const etype = extractEncryptionFromRaw(raw);
+  const isRc4 = etype === "0x17" || etype === 23 || String(etype).toLowerCase().includes("rc4");
+  const target = user !== "unknown" ? user : String(pickField(raw, "target") || "unknown").toLowerCase();
+
+  const indicators =
+    attack === "AS-REP Roasting"
+      ? {
+          as_rep_roasting: true,
+          rc4_encryption: isRc4,
+          kerberoasting: false,
+        }
+      : {
+          kerberoasting: true,
+          rc4_encryption: isRc4,
+          service_account_spn: Boolean(target && target !== "unknown"),
+        };
+
+  const scored = scoreFromDetection(indicators, target, options.attackPath || null);
+  const evidence = buildEvidence(
+    {
+      ...indicators,
+      privileged_link: scored.breakdown.some((b) => b.factor === "privileged_asset_link"),
+      privileged_path: scored.breakdown.some((b) => b.factor === "privileged_path_full"),
+    },
+    {},
+  );
+
+  const timeRaw =
+    pickField(raw, "time", "timestamp", "@timestamp") || new Date().toISOString();
+  let time = new Date().toISOString();
+  try {
+    const d = new Date(timeRaw);
+    if (!Number.isNaN(d.getTime())) time = d.toISOString();
+  } catch {
+    /* ignore */
+  }
+
+  return {
+    id: stableAlertId([attack, target, user, host, String(event_id), String(etype)]),
+    time,
+    source: options.source || "Wazuh",
+    attack,
+    mitre,
+    severity: scored.severity,
+    risk: scored.risk,
+    user,
+    target,
+    source_ip: sourceIp,
+    host,
+    event_id,
+    evidence: evidence.length > 0 ? evidence : scored.evidence,
+    response: attack === "AS-REP Roasting" ? [...AS_REP_RESPONSE_ACTIONS] : [...DEFAULT_RESPONSE_ACTIONS],
+    detection: {
+      sigma_matched: true,
+      indicators,
+      multiple_tgs_count: 0,
+      risk_breakdown: scored.breakdown,
+    },
+  };
+}
 
 /**
  * Generate a stable alert id.
@@ -159,7 +299,7 @@ function correlateAlert(rawAlert, options = {}) {
           { multiple_tgs_count: detection?.multiple_tgs_count }
         );
 
-  const risk = rawAlert.risk ?? scored.risk;
+  const risk = rawAlert.canonical_risk ?? rawAlert.risk ?? scored.risk;
   const severity = rawAlert.severity ?? severityFromRisk(risk);
 
   return {
@@ -235,7 +375,10 @@ function processWazuhPayload(payload, attackPath = null) {
   }
 
   if (results.length === 0) {
-    return [];
+    for (const item of items) {
+      const built = buildAlertFromWazuhItem(item, { attackPath, source: "Wazuh" });
+      if (built) results.push(built);
+    }
   }
 
   return results;
@@ -250,6 +393,7 @@ function inferIndicatorsFromAlert(alert) {
   const evidence = Array.isArray(alert.evidence) ? alert.evidence.join(" ").toLowerCase() : "";
   return {
     kerberoasting: alert.attack === "Kerberoasting" || Number(alert.event_id) === 4769,
+    as_rep_roasting: alert.attack === "AS-REP Roasting" || Number(alert.event_id) === AS_REP_EVENT_ID,
     rc4_encryption: evidence.includes("rc4") || alert.encryption_type === "0x17",
     multiple_tgs: evidence.includes("multiple") && evidence.includes("tgs"),
     service_account_spn: evidence.includes("spn") || Boolean(alert.target),
@@ -265,14 +409,22 @@ function explainAlert(alert) {
   const correlated = correlateAlert(alert);
   const sigmaReasons = [];
   const indicators = correlated.detection?.indicators || {};
+  const isAsRep = alert.attack === "AS-REP Roasting" || indicators.as_rep_roasting;
   const matched =
     correlated.detection?.sigma_matched ||
     indicators.kerberoasting ||
-    alert.attack === "Kerberoasting";
+    indicators.as_rep_roasting ||
+    alert.attack === "Kerberoasting" ||
+    alert.attack === "AS-REP Roasting";
 
   if (matched) {
-    sigmaReasons.push("Sigma rule authgraph-kerberoasting-4769 matched");
-    sigmaReasons.push("Event ID 4769 — Kerberos service ticket operation");
+    if (isAsRep) {
+      sigmaReasons.push("Sigma / Wazuh rule matched AS-REP roasting pattern");
+      sigmaReasons.push("Event ID 4768 or pre-auth disabled account targeted");
+    } else {
+      sigmaReasons.push("Sigma rule authgraph-kerberoasting-4769 matched");
+      sigmaReasons.push("Event ID 4769 — Kerberos service ticket operation");
+    }
     if (indicators.rc4_encryption) {
       sigmaReasons.push("RC4 TicketEncryptionType (offline crackable)");
     }
@@ -298,6 +450,7 @@ module.exports = {
   generateAlertId,
   stableAlertId,
   buildAlertFromEvents,
+  buildAlertFromWazuhItem,
   correlateAlert,
   correlateAlerts,
   processWazuhPayload,

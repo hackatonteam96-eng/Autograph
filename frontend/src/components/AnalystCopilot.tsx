@@ -88,11 +88,7 @@ export default function AnalystCopilot({
     if (seededFor.current === incidentId) return
     seededFor.current = incidentId
 
-    const seedText = incidentHeadline
-      ? `${incidentHeadline}${incidentRisk ? ` · Risk ${incidentRisk}/100.` : '.'} Ask me about the path, blast radius, or what to contain first.`
-      : incidentVerdict
-        ? `${incidentVerdict.slice(0, 220)}${incidentVerdict.length > 220 ? '…' : ''} What do you need?`
-        : `Live Kerberoasting on ${incidentTarget ?? 'target'} from ${incidentUser ?? 'source user'}. I have full incident context — path, evidence, containment.`
+    const seedText = 'Hey — I\'m ARIA, on the board with you. Ask about the attack path, blast radius, containment, or say "summarize" for a quick brief.'
 
     setMessages([{
       role: 'assistant',
@@ -172,7 +168,6 @@ export default function AnalystCopilot({
           <strong>ARIA</strong>
           <span>{disabled ? 'Awaiting incident' : `Online · ${modelLabel}`}</span>
         </div>
-        {!disabled && <span className="aria__live-badge">LIVE</span>}
       </header>
 
       <div className="aria__feed" role="log" aria-live="polite">

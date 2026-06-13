@@ -1,5 +1,1785 @@
 [
   {
+    "id": "log-1781337492792-anxenb",
+    "ts": "2026-06-13T07:58:12.792Z",
+    "level": "webhook",
+    "message": "Webhook update for existing incident alert-dc0a3c1e3f4d",
+    "incident_id": "alert-dc0a3c1e3f4d",
+    "user": "svc-mssql@autograph.lab",
+    "target": "svc-mssql",
+    "risk": 70,
+    "host": "SERVER01",
+    "attack": "Kerberoasting",
+    "is_new": false
+  },
+  {
+    "id": "log-1781337484700-21fuee",
+    "ts": "2026-06-13T07:58:04.700Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Not an ITDR identity alert — need Kerberos/AS-REP rule, T1558, or AuthGraph detection",
+    "kind": "unknown",
+    "preview": "{\"rule\":\"windows command prompt started by an abnormal process\",\"agent\":\"WIN01\"}"
+  },
+  {
+    "id": "log-1781337372576-h9tkn3",
+    "ts": "2026-06-13T07:56:12.576Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Not an ITDR identity alert — need Kerberos/AS-REP rule, T1558, or AuthGraph detection",
+    "kind": "unknown",
+    "preview": "{\"rule\":\"windows command prompt started by an abnormal process\",\"agent\":\"SERVER01\"}"
+  },
+  {
+    "id": "log-1781337310303-7ipkye",
+    "ts": "2026-06-13T07:55:10.303Z",
+    "level": "system",
+    "message": "Incident report emailed to support.vulnbase@gmail.com",
+    "incident_id": "alert-8864a15bb1d6",
+    "subject": "[MEDIUM] AuthGraph — AS-REP Roasting — svc-backup via SERVER01",
+    "resend_id": "74012aca-a4aa-484d-b6a1-fbbb88dfa229"
+  },
+  {
+    "id": "log-1781337278612-rss4gr",
+    "ts": "2026-06-13T07:54:38.612Z",
+    "level": "ai",
+    "message": "ARIA enriched incident alert-8864a15bb1d6",
+    "incident_id": "alert-8864a15bb1d6",
+    "headline": "AS-REP Roasting on svc-backup via SERVER01",
+    "actions": 4
+  },
+  {
+    "id": "log-1781337273461-t4o3x1",
+    "ts": "2026-06-13T07:54:33.461Z",
+    "level": "webhook",
+    "message": "Webhook update for existing incident alert-8864a15bb1d6",
+    "incident_id": "alert-8864a15bb1d6",
+    "user": "svc-backup",
+    "target": "svc-backup",
+    "risk": 55,
+    "host": "SERVER01",
+    "attack": "AS-REP Roasting",
+    "is_new": false
+  },
+  {
+    "id": "log-1781337272380-xtwr1v",
+    "ts": "2026-06-13T07:54:32.380Z",
+    "level": "webhook",
+    "message": "Webhook update for existing incident alert-8864a15bb1d6",
+    "incident_id": "alert-8864a15bb1d6",
+    "user": "svc-backup",
+    "target": "svc-backup",
+    "risk": 55,
+    "host": "SERVER01",
+    "attack": "AS-REP Roasting",
+    "is_new": false
+  },
+  {
+    "id": "log-1781337126977-0diwyb",
+    "ts": "2026-06-13T07:52:06.977Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Not an ITDR identity alert — need Kerberos/AS-REP rule, T1558, or AuthGraph detection",
+    "kind": "unknown",
+    "preview": "{\"rule\":\"software protection service scheduled successfully.\",\"agent\":\"SERVER01\"}"
+  },
+  {
+    "id": "log-1781337126043-1q720g",
+    "ts": "2026-06-13T07:52:06.043Z",
+    "level": "system",
+    "message": "Incident report emailed to support.vulnbase@gmail.com",
+    "incident_id": "alert-86e9fc3d09be",
+    "subject": "[MEDIUM] AuthGraph ITDR — Kerberoasting — desktop-ckob3kk$@autograph.lab → desktop-ckob3kk$@autograph.lab",
+    "resend_id": "014b6c39-b3e9-467f-a7e0-3ee672d06a12"
+  },
+  {
+    "id": "log-1781337103355-wikxo2",
+    "ts": "2026-06-13T07:51:43.355Z",
+    "level": "ai",
+    "message": "ARIA enriched incident alert-86e9fc3d09be",
+    "incident_id": "alert-86e9fc3d09be",
+    "headline": "Kerberoasting: desktop-ckob3kk$ targets itself via SPN on SERVER01",
+    "actions": 4
+  },
+  {
+    "id": "log-1781337090907-l16qq1",
+    "ts": "2026-06-13T07:51:30.907Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Not an ITDR identity alert — need Kerberos/AS-REP rule, T1558, or AuthGraph detection",
+    "kind": "unknown",
+    "preview": "{\"rule\":\"windows user logoff\",\"agent\":\"WIN01\"}"
+  },
+  {
+    "id": "log-1781337090849-j6ws8s",
+    "ts": "2026-06-13T07:51:30.849Z",
+    "level": "alert",
+    "message": "New Kerberoasting alert from Wazuh/Yara webhook",
+    "incident_id": "alert-86e9fc3d09be",
+    "user": "desktop-ckob3kk$@autograph.lab",
+    "target": "desktop-ckob3kk$@autograph.lab",
+    "risk": 50,
+    "host": "SERVER01",
+    "attack": "Kerberoasting",
+    "is_new": true
+  },
+  {
+    "id": "log-1781337090776-iwz15z",
+    "ts": "2026-06-13T07:51:30.776Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Not an ITDR identity alert — need Kerberos/AS-REP rule, T1558, or AuthGraph detection",
+    "kind": "unknown",
+    "preview": "{\"rule\":\"windows logon success\",\"agent\":\"WIN01\"}"
+  },
+  {
+    "id": "log-1781337088674-kw26n0",
+    "ts": "2026-06-13T07:51:28.674Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Not an ITDR identity alert — need Kerberos/AS-REP rule, T1558, or AuthGraph detection",
+    "kind": "unknown",
+    "preview": "{\"rule\":\"windows defender: antimalware platform is running and in a healthy state\",\"agent\":\"SERVER01\"}"
+  },
+  {
+    "id": "log-1781336557425-4m64r4",
+    "ts": "2026-06-13T07:42:37.425Z",
+    "level": "webhook",
+    "message": "Webhook update for existing incident alert-8864a15bb1d6",
+    "incident_id": "alert-8864a15bb1d6",
+    "user": "svc-backup",
+    "target": "svc-backup",
+    "risk": 55,
+    "host": "SERVER01",
+    "attack": "AS-REP Roasting",
+    "is_new": false
+  },
+  {
+    "id": "log-1781336556369-9q9lsq",
+    "ts": "2026-06-13T07:42:36.369Z",
+    "level": "webhook",
+    "message": "Webhook update for existing incident alert-8864a15bb1d6",
+    "incident_id": "alert-8864a15bb1d6",
+    "user": "svc-backup",
+    "target": "svc-backup",
+    "risk": 55,
+    "host": "SERVER01",
+    "attack": "AS-REP Roasting",
+    "is_new": false
+  },
+  {
+    "id": "log-1781336249727-27e81x",
+    "ts": "2026-06-13T07:37:29.727Z",
+    "level": "system",
+    "message": "Dashboard reset — placeholder and simulation state cleared"
+  },
+  {
+    "id": "log-1781336248511-5ygore",
+    "ts": "2026-06-13T07:37:28.511Z",
+    "level": "action",
+    "message": "Containment POST /api/contain/alert-8864a15bb1d6 → 500",
+    "ms": 7,
+    "status": 500
+  },
+  {
+    "id": "log-1781336248507-uowblj",
+    "ts": "2026-06-13T07:37:28.507Z",
+    "level": "action",
+    "message": "Playbook dry-run: Disable pre-authentication not required on target account",
+    "incident_id": "alert-8864a15bb1d6",
+    "playbook_id": "disable_preauth",
+    "command": "# 1) Audit — Kerberos pre-auth setting\nGet-ADUser -Identity 'svc-backup' -Properties DoesNotRequirePreAuth,ServicePrincipalName,PasswordLastSet -Server 'SERVER01' | Format-List Name,SamAccountName,DoesNotRequirePreAuth,ServicePrincipalName,PasswordLastSet\n\n# 2) Contain — require Kerberos pre-authentication\nSet-ADAccountControl -Identity 'svc-backup' -DoesNotRequirePreAuth $false -Server 'SERVER01'\n\n# 3) Verify\nGet-ADUser -Identity 'svc-backup' -Properties DoesNotRequirePreAuth -Server 'SERVER01' | Select-Object Name,SamAccountName,DoesNotRequirePreAuth",
+    "status": "simulated"
+  },
+  {
+    "id": "log-1781336243206-oh3iju",
+    "ts": "2026-06-13T07:37:23.206Z",
+    "level": "system",
+    "message": "Re-analyzing live Wazuh alert with ARIA",
+    "incident_id": "alert-8864a15bb1d6",
+    "user": "svc-backup",
+    "target": "svc-backup"
+  },
+  {
+    "id": "log-1781336241572-uw9b2y",
+    "ts": "2026-06-13T07:37:21.572Z",
+    "level": "system",
+    "message": "Dashboard reset — placeholder and simulation state cleared"
+  },
+  {
+    "id": "log-1781336240605-bw03sr",
+    "ts": "2026-06-13T07:37:20.605Z",
+    "level": "system",
+    "message": "Dashboard reset — placeholder and simulation state cleared"
+  },
+  {
+    "id": "log-1781336239223-r1p4jj",
+    "ts": "2026-06-13T07:37:19.223Z",
+    "level": "system",
+    "message": "Dashboard reset — placeholder and simulation state cleared"
+  },
+  {
+    "id": "log-1781336233931-hly5an",
+    "ts": "2026-06-13T07:37:13.931Z",
+    "level": "system",
+    "message": "Dashboard reset — placeholder and simulation state cleared"
+  },
+  {
+    "id": "log-1781336230020-09lva7",
+    "ts": "2026-06-13T07:37:10.020Z",
+    "level": "system",
+    "message": "Dashboard reset — placeholder and simulation state cleared"
+  },
+  {
+    "id": "log-1781335465148-cy3p86",
+    "ts": "2026-06-13T07:24:25.148Z",
+    "level": "action",
+    "message": "Playbook recorded (copy-run) for alert-8864a15bb1d6",
+    "incident_id": "alert-8864a15bb1d6",
+    "actions": 1,
+    "mode": "simulated",
+    "risk_before": 55,
+    "risk_after": 32
+  },
+  {
+    "id": "log-1781335465145-4fsf95",
+    "ts": "2026-06-13T07:24:25.145Z",
+    "level": "action",
+    "message": "Playbook dry-run: Disable pre-authentication not required on target account",
+    "incident_id": "alert-8864a15bb1d6",
+    "playbook_id": "disable_preauth",
+    "command": "Get-ADUser -Identity 'svc-backup' -Properties DoesNotRequirePreAuth -Server 'SERVER01' | Select-Object Name,SamAccountName,DoesNotRequirePreAuth\n# After review — require pre-auth:\n# Set-ADAccountControl -Identity 'svc-backup' -DoesNotRequirePreAuth $false -Server 'SERVER01'",
+    "status": "simulated"
+  },
+  {
+    "id": "log-1781335428967-sw4ymh",
+    "ts": "2026-06-13T07:23:48.967Z",
+    "level": "webhook",
+    "message": "Webhook update for existing incident alert-8864a15bb1d6",
+    "incident_id": "alert-8864a15bb1d6",
+    "user": "svc-backup",
+    "target": "svc-backup",
+    "risk": 55,
+    "host": "SERVER01",
+    "attack": "AS-REP Roasting",
+    "is_new": false
+  },
+  {
+    "id": "log-1781335427912-qqfy6y",
+    "ts": "2026-06-13T07:23:47.912Z",
+    "level": "webhook",
+    "message": "Webhook update for existing incident alert-8864a15bb1d6",
+    "incident_id": "alert-8864a15bb1d6",
+    "user": "svc-backup",
+    "target": "svc-backup",
+    "risk": 55,
+    "host": "SERVER01",
+    "attack": "AS-REP Roasting",
+    "is_new": false
+  },
+  {
+    "id": "log-1781335407850-bp6lke",
+    "ts": "2026-06-13T07:23:27.850Z",
+    "level": "webhook",
+    "message": "Webhook update for existing incident alert-8864a15bb1d6",
+    "incident_id": "alert-8864a15bb1d6",
+    "user": "svc-backup",
+    "target": "svc-backup",
+    "risk": 55,
+    "host": "SERVER01",
+    "attack": "AS-REP Roasting",
+    "is_new": false
+  },
+  {
+    "id": "log-1781335407790-8gkf0w",
+    "ts": "2026-06-13T07:23:27.790Z",
+    "level": "webhook",
+    "message": "Webhook update for existing incident alert-8864a15bb1d6",
+    "incident_id": "alert-8864a15bb1d6",
+    "user": "svc-backup",
+    "target": "svc-backup",
+    "risk": 55,
+    "host": "SERVER01",
+    "attack": "AS-REP Roasting",
+    "is_new": false
+  },
+  {
+    "id": "log-1781335398897-voo26v",
+    "ts": "2026-06-13T07:23:18.897Z",
+    "level": "system",
+    "message": "Incident report emailed to support.vulnbase@gmail.com",
+    "incident_id": "alert-dc0a3c1e3f4d",
+    "subject": "[HIGH] AuthGraph ITDR — Kerberoasting — svc-mssql@autograph.lab → svc-mssql",
+    "resend_id": "cbd4caa2-9370-4cde-9a6a-4d87c5cba88e"
+  },
+  {
+    "id": "log-1781335391734-z6xom2",
+    "ts": "2026-06-13T07:23:11.734Z",
+    "level": "webhook",
+    "message": "Webhook update for existing incident alert-dc0a3c1e3f4d",
+    "incident_id": "alert-dc0a3c1e3f4d",
+    "user": "svc-mssql@autograph.lab",
+    "target": "svc-mssql",
+    "risk": 70,
+    "host": "SERVER01",
+    "attack": "Kerberoasting",
+    "is_new": false
+  },
+  {
+    "id": "log-1781335377664-6afpky",
+    "ts": "2026-06-13T07:22:57.664Z",
+    "level": "ai",
+    "message": "ARIA enriched incident alert-dc0a3c1e3f4d",
+    "incident_id": "alert-dc0a3c1e3f4d",
+    "headline": "Kerberoasting attack from svc-mssql targets svc-mssql on SERVER01",
+    "actions": 4
+  },
+  {
+    "id": "log-1781335375678-o08bwg",
+    "ts": "2026-06-13T07:22:55.678Z",
+    "level": "webhook",
+    "message": "Webhook update for existing incident alert-dc0a3c1e3f4d",
+    "incident_id": "alert-dc0a3c1e3f4d",
+    "user": "svc-mssql@autograph.lab",
+    "target": "svc-mssql",
+    "risk": 70,
+    "host": "SERVER01",
+    "attack": "Kerberoasting",
+    "is_new": false
+  },
+  {
+    "id": "log-1781335352187-hqyulc",
+    "ts": "2026-06-13T07:22:32.187Z",
+    "level": "system",
+    "message": "Incident report emailed to support.vulnbase@gmail.com",
+    "incident_id": "alert-8864a15bb1d6",
+    "subject": "[MEDIUM] AuthGraph ITDR — AS-REP Roasting — svc-backup → svc-backup",
+    "resend_id": "32d773d8-7dad-4103-85fb-b8dc55ed9756"
+  },
+  {
+    "id": "log-1781335328837-y3xh6z",
+    "ts": "2026-06-13T07:22:08.837Z",
+    "level": "ai",
+    "message": "ARIA enriched incident alert-8864a15bb1d6",
+    "incident_id": "alert-8864a15bb1d6",
+    "headline": "Kerberoasting — svc-backup → svc-backup",
+    "actions": 4
+  },
+  {
+    "id": "log-1781335328786-gib58v",
+    "ts": "2026-06-13T07:22:08.786Z",
+    "level": "system",
+    "message": "Incident report emailed to support.vulnbase@gmail.com",
+    "incident_id": "alert-8864a15bb1d6",
+    "subject": "[MEDIUM] AuthGraph — AS-REP Roasting — svc-backup → svc-backup",
+    "resend_id": "22a541f4-6275-4918-b7ae-39df9c029a67"
+  },
+  {
+    "id": "log-1781335326719-zvmz9x",
+    "ts": "2026-06-13T07:22:06.719Z",
+    "level": "system",
+    "message": "Dashboard reset — placeholder and simulation state cleared"
+  },
+  {
+    "id": "log-1781335326610-5s1aja",
+    "ts": "2026-06-13T07:22:06.610Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Not an ITDR identity alert — need Kerberos/AS-REP rule, T1558, or AuthGraph detection",
+    "kind": "unknown",
+    "preview": "{\"rule\":\"software protection service scheduled successfully.\",\"agent\":\"SERVER01\"}"
+  },
+  {
+    "id": "log-1781335325360-ktixu7",
+    "ts": "2026-06-13T07:22:05.360Z",
+    "level": "system",
+    "message": "Re-analyzing live Wazuh alert with ARIA",
+    "incident_id": "alert-8864a15bb1d6",
+    "user": "svc-backup",
+    "target": "svc-backup"
+  },
+  {
+    "id": "log-1781335314791-irhblr",
+    "ts": "2026-06-13T07:21:54.791Z",
+    "level": "system",
+    "message": "Incident report emailed to support.vulnbase@gmail.com",
+    "incident_id": "alert-da6a72d8e182",
+    "subject": "[MEDIUM] AuthGraph — AS-REP Roasting — attacker → attacker (service account) on SERVER01",
+    "resend_id": "bffebf92-8041-4067-aafd-dc4324957ec2"
+  },
+  {
+    "id": "log-1781335295376-8gl5bq",
+    "ts": "2026-06-13T07:21:35.376Z",
+    "level": "ai",
+    "message": "ARIA enriched incident alert-8864a15bb1d6",
+    "incident_id": "alert-8864a15bb1d6",
+    "headline": "Kerberoasting — svc-backup → svc-backup",
+    "actions": 4
+  },
+  {
+    "id": "log-1781335283552-l2o1xi",
+    "ts": "2026-06-13T07:21:23.552Z",
+    "level": "webhook",
+    "message": "Webhook update for existing incident alert-8864a15bb1d6",
+    "incident_id": "alert-8864a15bb1d6",
+    "user": "svc-backup",
+    "target": "svc-backup",
+    "risk": 55,
+    "host": "SERVER01",
+    "attack": "AS-REP Roasting",
+    "is_new": false
+  },
+  {
+    "id": "log-1781335283335-650c4n",
+    "ts": "2026-06-13T07:21:23.335Z",
+    "level": "alert",
+    "message": "New AS-REP Roasting alert from Wazuh/Yara webhook",
+    "incident_id": "alert-8864a15bb1d6",
+    "user": "svc-backup",
+    "target": "svc-backup",
+    "risk": 55,
+    "host": "SERVER01",
+    "attack": "AS-REP Roasting",
+    "is_new": true
+  },
+  {
+    "id": "log-1781335199856-fph9kl",
+    "ts": "2026-06-13T07:19:59.856Z",
+    "level": "ai",
+    "message": "ARIA enriched incident alert-da6a72d8e182",
+    "incident_id": "alert-da6a72d8e182",
+    "headline": "AS-REP Roasting: attacker targets service account on SERVER01",
+    "actions": 4
+  },
+  {
+    "id": "log-1781335187414-3qbsws",
+    "ts": "2026-06-13T07:19:47.414Z",
+    "level": "alert",
+    "message": "New AS-REP Roasting alert from Wazuh/Yara webhook",
+    "incident_id": "alert-da6a72d8e182",
+    "user": "attacker",
+    "target": "attacker",
+    "risk": 55,
+    "host": "SERVER01",
+    "attack": "AS-REP Roasting",
+    "is_new": true
+  },
+  {
+    "id": "log-1781335108692-8zc4v0",
+    "ts": "2026-06-13T07:18:28.692Z",
+    "level": "warn",
+    "message": "Incident report failed: You can only send testing emails to your own email address (support.vulnbase@gmail.com). To send emails to other recipients, please verify a domain at resend.com/domains, and change the `from` address to an email using this domain. — With onboarding@resend.dev you must set ITDR_REPORT_TO to the email on your Resend account, or verify a domain you own at resend.com/domains and update ITDR_REPORT_FROM.",
+    "incident_id": "alert-dc0a3c1e3f4d"
+  },
+  {
+    "id": "log-1781335069477-vtpwo3",
+    "ts": "2026-06-13T07:17:49.477Z",
+    "level": "ai",
+    "message": "ARIA enriched incident alert-dc0a3c1e3f4d",
+    "incident_id": "alert-dc0a3c1e3f4d",
+    "headline": "Kerberoasting attack from svc-mssql targets svc-mssql on SERVER01",
+    "actions": 4
+  },
+  {
+    "id": "log-1781335065204-zct9xj",
+    "ts": "2026-06-13T07:17:45.204Z",
+    "level": "system",
+    "message": "Re-analyzing live Wazuh alert with ARIA",
+    "incident_id": "alert-dc0a3c1e3f4d",
+    "user": "svc-mssql@autograph.lab",
+    "target": "svc-mssql"
+  },
+  {
+    "id": "log-1781335053039-no1dy3",
+    "ts": "2026-06-13T07:17:33.039Z",
+    "level": "webhook",
+    "message": "Webhook POST /api/webhook/wazuh → 400",
+    "ms": 4,
+    "status": 400
+  },
+  {
+    "id": "log-1781335053036-apeni3",
+    "ts": "2026-06-13T07:17:33.036Z",
+    "level": "warn",
+    "message": "Webhook accepted but could not parse Kerberoasting alert",
+    "preview": "{\"rule\":\"authgraph: as-rep roasting - single rc4 tgt without pre-authentication\",\"etype\":\"0x17\",\"agent\":\"SERVER01\"}"
+  },
+  {
+    "id": "log-1781335051981-lla9ax",
+    "ts": "2026-06-13T07:17:31.981Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Not Kerberoasting — need Event 4769, T1558, or weak ticket encryption (etype > 0x07)",
+    "kind": "unknown",
+    "preview": "{\"rule\":\"authgraph: as-rep roasting - single rc4 tgt without pre-authentication\"}"
+  },
+  {
+    "id": "log-1781335051974-e1d4he",
+    "ts": "2026-06-13T07:17:31.974Z",
+    "level": "webhook",
+    "message": "Webhook POST /api/webhook/wazuh → 400",
+    "ms": 3,
+    "status": 400
+  },
+  {
+    "id": "log-1781335051972-e368nr",
+    "ts": "2026-06-13T07:17:31.972Z",
+    "level": "warn",
+    "message": "Webhook accepted but could not parse Kerberoasting alert",
+    "preview": "{\"rule\":\"authgraph: as-rep roasting - single rc4 tgt without pre-authentication\",\"etype\":\"0x17\",\"agent\":\"SERVER01\"}"
+  },
+  {
+    "id": "log-1781334403387-w50gr9",
+    "ts": "2026-06-13T07:06:43.387Z",
+    "level": "action",
+    "message": "Containment executed on alert-dc0a3c1e3f4d",
+    "incident_id": "alert-dc0a3c1e3f4d",
+    "actions": 1,
+    "mode": "simulated",
+    "risk_before": 70,
+    "risk_after": 32
+  },
+  {
+    "id": "log-1781334403383-1x9bay",
+    "ts": "2026-06-13T07:06:43.383Z",
+    "level": "action",
+    "message": "Playbook dry-run: Reset service account password",
+    "incident_id": "alert-dc0a3c1e3f4d",
+    "playbook_id": "rotate_service_password",
+    "command": "$newPwd = ConvertTo-SecureString -AsPlainText (([guid]::NewGuid().ToString('N') + 'Aa1!').Substring(0,16)) -Force\nSet-ADAccountPassword -Identity 'svc-mssql' -Reset -NewPassword $newPwd -Server 'SERVER01'\nSet-ADUser -Identity 'svc-mssql' -ChangePasswordAtLogon $true -Server 'SERVER01'",
+    "status": "simulated"
+  },
+  {
+    "id": "log-1781334150600-hsie1y",
+    "ts": "2026-06-13T07:02:30.600Z",
+    "level": "webhook",
+    "message": "Webhook POST /api/webhook/wazuh → 400",
+    "ms": 5,
+    "status": 400
+  },
+  {
+    "id": "log-1781334150597-5evo7q",
+    "ts": "2026-06-13T07:02:30.597Z",
+    "level": "warn",
+    "message": "Webhook accepted but could not parse Kerberoasting alert",
+    "preview": "{\"rule\":\"authgraph: as-rep roasting - single rc4 tgt without pre-authentication\",\"etype\":\"0x17\",\"agent\":\"SERVER01\"}"
+  },
+  {
+    "id": "log-1781334150536-cjhxko",
+    "ts": "2026-06-13T07:02:30.536Z",
+    "level": "webhook",
+    "message": "Webhook POST /api/webhook/wazuh → 400",
+    "ms": 4,
+    "status": 400
+  },
+  {
+    "id": "log-1781334150534-qbwfo3",
+    "ts": "2026-06-13T07:02:30.534Z",
+    "level": "warn",
+    "message": "Webhook accepted but could not parse Kerberoasting alert",
+    "preview": "{\"rule\":\"authgraph: as-rep roasting - single rc4 tgt without pre-authentication\",\"etype\":\"0x17\",\"agent\":\"SERVER01\"}"
+  },
+  {
+    "id": "log-1781334087758-wypps7",
+    "ts": "2026-06-13T07:01:27.758Z",
+    "level": "warn",
+    "message": "Incident report failed: You can only send testing emails to your own email address (support.vulnbase@gmail.com). To send emails to other recipients, please verify a domain at resend.com/domains, and change the `from` address to an email using this domain. — With onboarding@resend.dev you must set ITDR_REPORT_TO to the email on your Resend account, or verify a domain you own at resend.com/domains and update ITDR_REPORT_FROM.",
+    "incident_id": "alert-dc0a3c1e3f4d"
+  },
+  {
+    "id": "log-1781334078422-5q0sev",
+    "ts": "2026-06-13T07:01:18.422Z",
+    "level": "webhook",
+    "message": "Webhook POST /api/webhook/wazuh → 400",
+    "ms": 5,
+    "status": 400
+  },
+  {
+    "id": "log-1781334078419-e6y92g",
+    "ts": "2026-06-13T07:01:18.419Z",
+    "level": "warn",
+    "message": "Webhook accepted but could not parse Kerberoasting alert",
+    "preview": "{\"rule\":\"authgraph: as-rep roasting - single rc4 tgt without pre-authentication\",\"etype\":\"0x17\",\"agent\":\"SERVER01\"}"
+  },
+  {
+    "id": "log-1781334078365-4f39vj",
+    "ts": "2026-06-13T07:01:18.365Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Not Kerberoasting — need Event 4769, T1558, or weak ticket encryption (etype > 0x07)",
+    "kind": "unknown",
+    "preview": "{\"rule\":\"authgraph: as-rep roasting - single rc4 tgt without pre-authentication\"}"
+  },
+  {
+    "id": "log-1781334078359-i5owe8",
+    "ts": "2026-06-13T07:01:18.359Z",
+    "level": "webhook",
+    "message": "Webhook POST /api/webhook/wazuh → 400",
+    "ms": 4,
+    "status": 400
+  },
+  {
+    "id": "log-1781334078356-863r3s",
+    "ts": "2026-06-13T07:01:18.356Z",
+    "level": "warn",
+    "message": "Webhook accepted but could not parse Kerberoasting alert",
+    "preview": "{\"rule\":\"authgraph: as-rep roasting - single rc4 tgt without pre-authentication\",\"etype\":\"0x17\",\"agent\":\"SERVER01\"}"
+  },
+  {
+    "id": "log-1781334068708-unnk9e",
+    "ts": "2026-06-13T07:01:08.708Z",
+    "level": "ai",
+    "message": "ARIA enriched incident alert-dc0a3c1e3f4d",
+    "incident_id": "alert-dc0a3c1e3f4d",
+    "headline": "Kerberoasting by svc-mssql targets svc-mssql service account",
+    "actions": 4
+  },
+  {
+    "id": "log-1781334065781-wep6k8",
+    "ts": "2026-06-13T07:01:05.781Z",
+    "level": "system",
+    "message": "Dashboard reset — placeholder and simulation state cleared"
+  },
+  {
+    "id": "log-1781334064242-62p69r",
+    "ts": "2026-06-13T07:01:04.242Z",
+    "level": "system",
+    "message": "Re-analyzing live Wazuh alert with ARIA",
+    "incident_id": "alert-dc0a3c1e3f4d",
+    "user": "svc-mssql@autograph.lab",
+    "target": "svc-mssql"
+  },
+  {
+    "id": "log-1781334045101-41ic86",
+    "ts": "2026-06-13T07:00:45.101Z",
+    "level": "warn",
+    "message": "Incident report failed: You can only send testing emails to your own email address (support.vulnbase@gmail.com). To send emails to other recipients, please verify a domain at resend.com/domains, and change the `from` address to an email using this domain. — With onboarding@resend.dev you must set ITDR_REPORT_TO to the email on your Resend account, or verify a domain you own at resend.com/domains and update ITDR_REPORT_FROM.",
+    "incident_id": "alert-dc0a3c1e3f4d"
+  },
+  {
+    "id": "log-1781334022285-rb5cbg",
+    "ts": "2026-06-13T07:00:22.285Z",
+    "level": "webhook",
+    "message": "Webhook POST /api/webhook/wazuh → 400",
+    "ms": 3,
+    "status": 400
+  },
+  {
+    "id": "log-1781334022284-9uizip",
+    "ts": "2026-06-13T07:00:22.284Z",
+    "level": "warn",
+    "message": "Webhook accepted but could not parse Kerberoasting alert",
+    "preview": "{\"rule\":\"authgraph: as-rep roasting tooling - powershell script block (event 4104)\",\"agent\":\"SERVER01\"}"
+  },
+  {
+    "id": "log-1781334019061-edkaj6",
+    "ts": "2026-06-13T07:00:19.061Z",
+    "level": "ai",
+    "message": "ARIA enriched incident alert-dc0a3c1e3f4d",
+    "incident_id": "alert-dc0a3c1e3f4d",
+    "headline": "svc-mssql@autograph.lab Kerberoasts svc-mssql",
+    "actions": 4
+  },
+  {
+    "id": "log-1781334013228-cy8kz8",
+    "ts": "2026-06-13T07:00:13.228Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Not Kerberoasting — need Event 4769, T1558, or weak ticket encryption (etype > 0x07)",
+    "kind": "unknown",
+    "preview": "{\"rule\":\"authgraph: as-rep roasting tooling - powershell script block (event 4104)\"}"
+  },
+  {
+    "id": "log-1781334013221-r04tt0",
+    "ts": "2026-06-13T07:00:13.221Z",
+    "level": "webhook",
+    "message": "Webhook POST /api/webhook/wazuh → 400",
+    "ms": 4,
+    "status": 400
+  },
+  {
+    "id": "log-1781334013218-t2ca99",
+    "ts": "2026-06-13T07:00:13.218Z",
+    "level": "warn",
+    "message": "Webhook accepted but could not parse Kerberoasting alert",
+    "preview": "{\"rule\":\"authgraph: as-rep roasting tooling - powershell script block (event 4104)\",\"agent\":\"SERVER01\"}"
+  },
+  {
+    "id": "log-1781334010929-0bes8u",
+    "ts": "2026-06-13T07:00:10.929Z",
+    "level": "action",
+    "message": "Containment executed on alert-dc0a3c1e3f4d",
+    "incident_id": "alert-dc0a3c1e3f4d",
+    "actions": 5,
+    "mode": "simulated",
+    "risk_before": 70,
+    "risk_after": 32
+  },
+  {
+    "id": "log-1781334010927-7zwddn",
+    "ts": "2026-06-13T07:00:10.927Z",
+    "level": "action",
+    "message": "Playbook dry-run: Rotate credentials for exposed service account",
+    "incident_id": "alert-dc0a3c1e3f4d",
+    "playbook_id": "rotate_service_password",
+    "command": "$newPwd = ConvertTo-SecureString -AsPlainText (([guid]::NewGuid().ToString('N') + 'Aa1!').Substring(0,16)) -Force\nSet-ADAccountPassword -Identity 'svc-mssql' -Reset -NewPassword $newPwd -Server 'SERVER01'\nSet-ADUser -Identity 'svc-mssql' -ChangePasswordAtLogon $true -Server 'SERVER01'",
+    "status": "simulated"
+  },
+  {
+    "id": "log-1781334010925-xpxc9m",
+    "ts": "2026-06-13T07:00:10.925Z",
+    "level": "action",
+    "message": "Playbook dry-run: Investigate source user session",
+    "incident_id": "alert-dc0a3c1e3f4d",
+    "playbook_id": "revoke_sessions",
+    "command": "Get-ADUser -Identity 'svc-mssql' -Properties LastLogonDate,LockedOut -Server 'SERVER01' | Format-List\n# Force logoff via SOAR / Reset-ComputerMachinePassword if needed",
+    "status": "simulated"
+  },
+  {
+    "id": "log-1781334010922-escwoa",
+    "ts": "2026-06-13T07:00:10.922Z",
+    "level": "action",
+    "message": "Playbook dry-run: Review SPN ownership",
+    "incident_id": "alert-dc0a3c1e3f4d",
+    "playbook_id": "review_spn",
+    "command": "Get-ADUser -Identity 'svc-mssql' -Properties ServicePrincipalName -Server 'SERVER01' | Select-Object Name,SamAccountName,ServicePrincipalName\n# Remove exposed SPN after review:\n# Set-ADUser -Identity 'svc-mssql' -ServicePrincipalNames @{} -Server 'SERVER01'",
+    "status": "simulated"
+  },
+  {
+    "id": "log-1781334010919-nn20m9",
+    "ts": "2026-06-13T07:00:10.919Z",
+    "level": "action",
+    "message": "Playbook dry-run: Disable RC4 Kerberos encryption",
+    "incident_id": "alert-dc0a3c1e3f4d",
+    "playbook_id": "rc4_hardening",
+    "command": "Set-ADDomain -Identity 'SERVER01' -Replace @{'msDS-SupportedEncryptionTypes'='24'} -Server 'SERVER01'",
+    "status": "simulated"
+  },
+  {
+    "id": "log-1781334010917-b6q6db",
+    "ts": "2026-06-13T07:00:10.917Z",
+    "level": "action",
+    "message": "Playbook dry-run: Reset service account password",
+    "incident_id": "alert-dc0a3c1e3f4d",
+    "playbook_id": "rotate_service_password",
+    "command": "$newPwd = ConvertTo-SecureString -AsPlainText (([guid]::NewGuid().ToString('N') + 'Aa1!').Substring(0,16)) -Force\nSet-ADAccountPassword -Identity 'svc-mssql' -Reset -NewPassword $newPwd -Server 'SERVER01'\nSet-ADUser -Identity 'svc-mssql' -ChangePasswordAtLogon $true -Server 'SERVER01'",
+    "status": "simulated"
+  },
+  {
+    "id": "log-1781334008765-vihzk3",
+    "ts": "2026-06-13T07:00:08.765Z",
+    "level": "system",
+    "message": "Re-analyzing live Wazuh alert with ARIA",
+    "incident_id": "alert-dc0a3c1e3f4d",
+    "user": "svc-mssql@autograph.lab",
+    "target": "svc-mssql"
+  },
+  {
+    "id": "log-1781334008303-up71cs",
+    "ts": "2026-06-13T07:00:08.303Z",
+    "level": "system",
+    "message": "Dashboard reset — placeholder and simulation state cleared"
+  },
+  {
+    "id": "log-1781334007773-3l3y54",
+    "ts": "2026-06-13T07:00:07.773Z",
+    "level": "system",
+    "message": "Dashboard reset — placeholder and simulation state cleared"
+  },
+  {
+    "id": "log-1781333885122-k6i05z",
+    "ts": "2026-06-13T06:58:05.122Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Not Kerberoasting — need Event 4769, T1558, or weak ticket encryption (etype > 0x07)",
+    "kind": "unknown",
+    "preview": "{\"rule\":\"windows command prompt started by an abnormal process\",\"agent\":\"WIN01\"}"
+  },
+  {
+    "id": "log-1781333867556-jzb1df",
+    "ts": "2026-06-13T06:57:47.556Z",
+    "level": "warn",
+    "message": "Incident report failed: You can only send testing emails to your own email address (support.vulnbase@gmail.com). To send emails to other recipients, please verify a domain at resend.com/domains, and change the `from` address to an email using this domain. — With onboarding@resend.dev you must set ITDR_REPORT_TO to the email on your Resend account, or verify a domain you own at resend.com/domains and update ITDR_REPORT_FROM.",
+    "incident_id": "alert-dc0a3c1e3f4d"
+  },
+  {
+    "id": "log-1781333853863-3xg8uh",
+    "ts": "2026-06-13T06:57:33.863Z",
+    "level": "ai",
+    "message": "ARIA enriched incident alert-dc0a3c1e3f4d",
+    "incident_id": "alert-dc0a3c1e3f4d",
+    "headline": "Kerberoasting: svc-mssql@autograph.lab targets svc-mssql on SERVER01",
+    "actions": 4
+  },
+  {
+    "id": "log-1781333849667-4idxyh",
+    "ts": "2026-06-13T06:57:29.667Z",
+    "level": "system",
+    "message": "Dashboard reset — placeholder and simulation state cleared"
+  },
+  {
+    "id": "log-1781333847082-bdp2k1",
+    "ts": "2026-06-13T06:57:27.082Z",
+    "level": "system",
+    "message": "Re-analyzing live Wazuh alert with ARIA",
+    "incident_id": "alert-dc0a3c1e3f4d",
+    "user": "svc-mssql@autograph.lab",
+    "target": "svc-mssql"
+  },
+  {
+    "id": "log-1781333846626-iqsxk8",
+    "ts": "2026-06-13T06:57:26.626Z",
+    "level": "ai",
+    "message": "ARIA enriched incident alert-dc0a3c1e3f4d",
+    "incident_id": "alert-dc0a3c1e3f4d",
+    "headline": "Kerberoasting — svc-mssql@autograph.lab → svc-mssql",
+    "actions": 4
+  },
+  {
+    "id": "log-1781333845330-n0h2xx",
+    "ts": "2026-06-13T06:57:25.330Z",
+    "level": "warn",
+    "message": "Incident report failed: You can only send testing emails to your own email address (support.vulnbase@gmail.com). To send emails to other recipients, please verify a domain at resend.com/domains, and change the `from` address to an email using this domain. — With onboarding@resend.dev you must set ITDR_REPORT_TO to the email on your Resend account, or verify a domain you own at resend.com/domains and update ITDR_REPORT_FROM.",
+    "incident_id": "alert-dc0a3c1e3f4d"
+  },
+  {
+    "id": "log-1781333839085-t8fat1",
+    "ts": "2026-06-13T06:57:19.085Z",
+    "level": "action",
+    "message": "Containment executed on alert-dc0a3c1e3f4d",
+    "incident_id": "alert-dc0a3c1e3f4d",
+    "actions": 5,
+    "mode": "simulated",
+    "risk_before": 70,
+    "risk_after": 32
+  },
+  {
+    "id": "log-1781333839083-v1uonz",
+    "ts": "2026-06-13T06:57:19.083Z",
+    "level": "action",
+    "message": "Playbook dry-run: Rotate credentials for exposed service account",
+    "incident_id": "alert-dc0a3c1e3f4d",
+    "playbook_id": "rotate_service_password",
+    "command": "$newPwd = ConvertTo-SecureString -AsPlainText (([guid]::NewGuid().ToString('N') + 'Aa1!').Substring(0,16)) -Force\nSet-ADAccountPassword -Identity 'svc-mssql' -Reset -NewPassword $newPwd -Server 'SERVER01'\nSet-ADUser -Identity 'svc-mssql' -ChangePasswordAtLogon $true -Server 'SERVER01'",
+    "status": "simulated"
+  },
+  {
+    "id": "log-1781333839081-6qv8l4",
+    "ts": "2026-06-13T06:57:19.081Z",
+    "level": "action",
+    "message": "Playbook dry-run: Investigate source user session",
+    "incident_id": "alert-dc0a3c1e3f4d",
+    "playbook_id": "revoke_sessions",
+    "command": "Get-ADUser -Identity 'svc-mssql' -Properties LastLogonDate,LockedOut -Server 'SERVER01' | Format-List\n# Force logoff via SOAR / Reset-ComputerMachinePassword if needed",
+    "status": "simulated"
+  },
+  {
+    "id": "log-1781333839077-o61ool",
+    "ts": "2026-06-13T06:57:19.077Z",
+    "level": "action",
+    "message": "Playbook dry-run: Review SPN ownership",
+    "incident_id": "alert-dc0a3c1e3f4d",
+    "playbook_id": "review_spn",
+    "command": "Get-ADUser -Identity 'svc-mssql' -Properties ServicePrincipalName -Server 'SERVER01' | Select-Object Name,SamAccountName,ServicePrincipalName\n# Remove exposed SPN after review:\n# Set-ADUser -Identity 'svc-mssql' -ServicePrincipalNames @{} -Server 'SERVER01'",
+    "status": "simulated"
+  },
+  {
+    "id": "log-1781333839075-dsib96",
+    "ts": "2026-06-13T06:57:19.075Z",
+    "level": "action",
+    "message": "Playbook dry-run: Disable RC4 Kerberos encryption",
+    "incident_id": "alert-dc0a3c1e3f4d",
+    "playbook_id": "rc4_hardening",
+    "command": "Set-ADDomain -Identity 'SERVER01' -Replace @{'msDS-SupportedEncryptionTypes'='24'} -Server 'SERVER01'",
+    "status": "simulated"
+  },
+  {
+    "id": "log-1781333839073-a3hzrf",
+    "ts": "2026-06-13T06:57:19.073Z",
+    "level": "action",
+    "message": "Playbook dry-run: Reset service account password",
+    "incident_id": "alert-dc0a3c1e3f4d",
+    "playbook_id": "rotate_service_password",
+    "command": "$newPwd = ConvertTo-SecureString -AsPlainText (([guid]::NewGuid().ToString('N') + 'Aa1!').Substring(0,16)) -Force\nSet-ADAccountPassword -Identity 'svc-mssql' -Reset -NewPassword $newPwd -Server 'SERVER01'\nSet-ADUser -Identity 'svc-mssql' -ChangePasswordAtLogon $true -Server 'SERVER01'",
+    "status": "simulated"
+  },
+  {
+    "id": "log-1781333835257-d37q13",
+    "ts": "2026-06-13T06:57:15.257Z",
+    "level": "system",
+    "message": "Dashboard reset — placeholder and simulation state cleared"
+  },
+  {
+    "id": "log-1781333832799-0l0sqa",
+    "ts": "2026-06-13T06:57:12.799Z",
+    "level": "system",
+    "message": "Re-analyzing live Wazuh alert with ARIA",
+    "incident_id": "alert-dc0a3c1e3f4d",
+    "user": "svc-mssql@autograph.lab",
+    "target": "svc-mssql"
+  },
+  {
+    "id": "log-1781333828730-fh0u8s",
+    "ts": "2026-06-13T06:57:08.730Z",
+    "level": "ai",
+    "message": "ARIA enriched incident alert-dc0a3c1e3f4d",
+    "incident_id": "alert-dc0a3c1e3f4d",
+    "headline": "Kerberoasting attack from svc-mssql targets svc-mssql on SERVER01",
+    "actions": 4
+  },
+  {
+    "id": "log-1781333821248-f5hzvg",
+    "ts": "2026-06-13T06:57:01.248Z",
+    "level": "system",
+    "message": "Dashboard reset — placeholder and simulation state cleared"
+  },
+  {
+    "id": "log-1781333817978-5hi0w3",
+    "ts": "2026-06-13T06:56:57.978Z",
+    "level": "system",
+    "message": "Re-analyzing live Wazuh alert with ARIA",
+    "incident_id": "alert-dc0a3c1e3f4d",
+    "user": "svc-mssql@autograph.lab",
+    "target": "svc-mssql"
+  },
+  {
+    "id": "log-1781333773031-spwhzm",
+    "ts": "2026-06-13T06:56:13.031Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Not Kerberoasting — need Event 4769, T1558, or weak ticket encryption (etype > 0x07)",
+    "kind": "unknown",
+    "preview": "{\"rule\":\"windows command prompt started by an abnormal process\",\"agent\":\"SERVER01\"}"
+  },
+  {
+    "id": "log-1781333714959-2vcfpm",
+    "ts": "2026-06-13T06:55:14.959Z",
+    "level": "webhook",
+    "message": "Webhook POST /api/webhook/wazuh → 400",
+    "ms": 3,
+    "status": 400
+  },
+  {
+    "id": "log-1781333714957-d6vdgv",
+    "ts": "2026-06-13T06:55:14.957Z",
+    "level": "warn",
+    "message": "Webhook accepted but could not parse Kerberoasting alert",
+    "preview": "{\"rule\":\"authgraph: kerberoasting - aes tgs mass enumeration (rc4 disabled environment) (filter_machine_spn)\",\"event_id\":4769}"
+  },
+  {
+    "id": "log-1781333714948-gup6vm",
+    "ts": "2026-06-13T06:55:14.948Z",
+    "level": "webhook",
+    "message": "Webhook POST /api/webhook/wazuh → 400",
+    "ms": 4,
+    "status": 400
+  },
+  {
+    "id": "log-1781333714946-j29qgu",
+    "ts": "2026-06-13T06:55:14.946Z",
+    "level": "warn",
+    "message": "Webhook accepted but could not parse Kerberoasting alert",
+    "preview": "{\"rule\":\"authgraph: kerberoasting - aes tgs mass enumeration (rc4 disabled environment) (filter_machine_spn)\",\"event_id\":4769,\"etype\":\"0x12\",\"agent\":\"SERVER01\"}"
+  },
+  {
+    "id": "log-1781333525845-sx2elu",
+    "ts": "2026-06-13T06:52:05.845Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Not Kerberoasting — need Event 4769, T1558, or weak ticket encryption (etype > 0x07)",
+    "kind": "unknown",
+    "preview": "{\"rule\":\"software protection service scheduled successfully.\",\"agent\":\"SERVER01\"}"
+  },
+  {
+    "id": "log-1781333519989-wo9pj5",
+    "ts": "2026-06-13T06:51:59.989Z",
+    "level": "action",
+    "message": "Containment executed on alert-dc0a3c1e3f4d",
+    "incident_id": "alert-dc0a3c1e3f4d",
+    "actions": 1,
+    "mode": "simulated",
+    "risk_before": 70,
+    "risk_after": 32
+  },
+  {
+    "id": "log-1781333519987-ebpgtn",
+    "ts": "2026-06-13T06:51:59.987Z",
+    "level": "action",
+    "message": "Playbook dry-run: Review SPN ownership",
+    "incident_id": "alert-dc0a3c1e3f4d",
+    "playbook_id": "review_spn",
+    "command": "Get-ADUser -Identity 'svc-mssql' -Properties ServicePrincipalName -Server 'SERVER01' | Select-Object Name,SamAccountName,ServicePrincipalName\n# Remove exposed SPN after review:\n# Set-ADUser -Identity 'svc-mssql' -ServicePrincipalNames @{} -Server 'SERVER01'",
+    "status": "simulated"
+  },
+  {
+    "id": "log-1781333488785-7ulotk",
+    "ts": "2026-06-13T06:51:28.785Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Not Kerberoasting — need Event 4769, T1558, or weak ticket encryption (etype > 0x07)",
+    "kind": "unknown",
+    "preview": "{\"rule\":\"windows defender: antimalware platform is running and in a healthy state\",\"agent\":\"SERVER01\"}"
+  },
+  {
+    "id": "log-1781332676521-obhhs6",
+    "ts": "2026-06-13T06:37:56.521Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Not Kerberoasting — need Event 4769, T1558, or weak ticket encryption (etype > 0x07)",
+    "kind": "unknown",
+    "preview": "{\"rule\":\"authgraph: as-rep roasting tooling - powershell script block (event 4104)\"}"
+  },
+  {
+    "id": "log-1781332676515-701m2a",
+    "ts": "2026-06-13T06:37:56.515Z",
+    "level": "webhook",
+    "message": "Webhook POST /api/webhook/wazuh → 400",
+    "ms": 3,
+    "status": 400
+  },
+  {
+    "id": "log-1781332676513-tfv6nk",
+    "ts": "2026-06-13T06:37:56.513Z",
+    "level": "warn",
+    "message": "Webhook accepted but could not parse Kerberoasting alert",
+    "preview": "{\"rule\":\"authgraph: as-rep roasting tooling - powershell script block (event 4104)\",\"agent\":\"SERVER01\"}"
+  },
+  {
+    "id": "log-1781332673460-u5143e",
+    "ts": "2026-06-13T06:37:53.460Z",
+    "level": "webhook",
+    "message": "Webhook POST /api/webhook/wazuh → 400",
+    "ms": 3,
+    "status": 400
+  },
+  {
+    "id": "log-1781332673458-2i9ic1",
+    "ts": "2026-06-13T06:37:53.458Z",
+    "level": "warn",
+    "message": "Webhook accepted but could not parse Kerberoasting alert",
+    "preview": "{\"rule\":\"authgraph: kerberoasting - aes tgs mass enumeration (rc4 disabled environment) (filter_machine_spn)\",\"event_id\":4769}"
+  },
+  {
+    "id": "log-1781332673448-lnl4yb",
+    "ts": "2026-06-13T06:37:53.448Z",
+    "level": "webhook",
+    "message": "Webhook POST /api/webhook/wazuh → 400",
+    "ms": 5,
+    "status": 400
+  },
+  {
+    "id": "log-1781332673445-htlq8c",
+    "ts": "2026-06-13T06:37:53.445Z",
+    "level": "warn",
+    "message": "Webhook accepted but could not parse Kerberoasting alert",
+    "preview": "{\"rule\":\"authgraph: kerberoasting - aes tgs mass enumeration (rc4 disabled environment) (filter_machine_spn)\",\"event_id\":4769,\"etype\":\"0x12\",\"agent\":\"SERVER01\"}"
+  },
+  {
+    "id": "log-1781332513358-xfbvrd",
+    "ts": "2026-06-13T06:35:13.358Z",
+    "level": "webhook",
+    "message": "Webhook update for existing incident alert-dc0a3c1e3f4d",
+    "incident_id": "alert-dc0a3c1e3f4d",
+    "user": "svc-mssql@autograph.lab",
+    "target": "svc-mssql",
+    "risk": 70,
+    "host": "SERVER01",
+    "is_new": false
+  },
+  {
+    "id": "log-1781332425278-hc49te",
+    "ts": "2026-06-13T06:33:45.278Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Non-ITDR alert (sshd/syslog) — ignored",
+    "kind": "noise",
+    "preview": "{\"rule\":\"wazuh server started.\"}"
+  },
+  {
+    "id": "log-1781332416169-k20viq",
+    "ts": "2026-06-13T06:33:36.169Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Non-ITDR alert (sshd/syslog) — ignored",
+    "kind": "noise",
+    "preview": "{\"rule\":\"listened ports status (netstat) changed (new port opened or closed).\"}"
+  },
+  {
+    "id": "log-1781332368968-ewvqh8",
+    "ts": "2026-06-13T06:32:48.968Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Non-ITDR alert (sshd/syslog) — ignored",
+    "kind": "noise",
+    "preview": "{\"rule\":\"successful sudo to root executed.\"}"
+  },
+  {
+    "id": "log-1781332368920-g0bqds",
+    "ts": "2026-06-13T06:32:48.920Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Non-ITDR alert (sshd/syslog) — ignored",
+    "kind": "noise",
+    "preview": "{\"rule\":\"pam: login session closed.\"}"
+  },
+  {
+    "id": "log-1781332368873-mayyzo",
+    "ts": "2026-06-13T06:32:48.873Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Non-ITDR alert (sshd/syslog) — ignored",
+    "kind": "noise",
+    "preview": "{\"rule\":\"pam: login session opened.\"}"
+  },
+  {
+    "id": "log-1781332194481-6jbkex",
+    "ts": "2026-06-13T06:29:54.481Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Non-ITDR alert (sshd/syslog) — ignored",
+    "kind": "noise",
+    "preview": "{\"rule\":\"pam: login session closed.\"}"
+  },
+  {
+    "id": "log-1781332194435-vt9e66",
+    "ts": "2026-06-13T06:29:54.435Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Non-ITDR alert (sshd/syslog) — ignored",
+    "kind": "noise",
+    "preview": "{\"rule\":\"pam: login session opened.\"}"
+  },
+  {
+    "id": "log-1781332194387-zrvokh",
+    "ts": "2026-06-13T06:29:54.387Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Non-ITDR alert (sshd/syslog) — ignored",
+    "kind": "noise",
+    "preview": "{\"rule\":\"successful sudo to root executed.\"}"
+  },
+  {
+    "id": "log-1781331907957-kk0luv",
+    "ts": "2026-06-13T06:25:07.957Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Non-ITDR alert (sshd/syslog) — ignored",
+    "kind": "noise",
+    "preview": "{\"rule\":\"pam: login session closed.\"}"
+  },
+  {
+    "id": "log-1781331905909-cyh5fc",
+    "ts": "2026-06-13T06:25:05.909Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Non-ITDR alert (sshd/syslog) — ignored",
+    "kind": "noise",
+    "preview": "{\"rule\":\"successful sudo to root executed.\"}"
+  },
+  {
+    "id": "log-1781331905856-1lf1tr",
+    "ts": "2026-06-13T06:25:05.856Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Non-ITDR alert (sshd/syslog) — ignored",
+    "kind": "noise",
+    "preview": "{\"rule\":\"pam: login session opened.\"}"
+  },
+  {
+    "id": "log-1781331724714-iqprjd",
+    "ts": "2026-06-13T06:22:04.714Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Not Kerberoasting — need Event 4769, T1558, or weak ticket encryption (etype > 0x07)",
+    "kind": "unknown",
+    "preview": "{\"rule\":\"software protection service scheduled successfully.\",\"agent\":\"SERVER01\"}"
+  },
+  {
+    "id": "log-1781331712401-y4g17l",
+    "ts": "2026-06-13T06:21:52.401Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Non-ITDR alert (sshd/syslog) — ignored",
+    "kind": "noise",
+    "preview": "{\"rule\":\"pam: login session closed.\"}"
+  },
+  {
+    "id": "log-1781331710351-3gjg7k",
+    "ts": "2026-06-13T06:21:50.351Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Non-ITDR alert (sshd/syslog) — ignored",
+    "kind": "noise",
+    "preview": "{\"rule\":\"pam: login session opened.\"}"
+  },
+  {
+    "id": "log-1781331710298-51fodb",
+    "ts": "2026-06-13T06:21:50.298Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Non-ITDR alert (sshd/syslog) — ignored",
+    "kind": "noise",
+    "preview": "{\"rule\":\"successful sudo to root executed.\"}"
+  },
+  {
+    "id": "log-1781331450009-b0hv12",
+    "ts": "2026-06-13T06:17:30.009Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Non-ITDR alert (sshd/syslog) — ignored",
+    "kind": "noise",
+    "preview": "{\"rule\":\"pam: login session closed.\"}"
+  },
+  {
+    "id": "log-1781331449961-vdr5gw",
+    "ts": "2026-06-13T06:17:29.961Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Non-ITDR alert (sshd/syslog) — ignored",
+    "kind": "noise",
+    "preview": "{\"rule\":\"pam: login session opened.\"}"
+  },
+  {
+    "id": "log-1781331449907-v3blon",
+    "ts": "2026-06-13T06:17:29.907Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Non-ITDR alert (sshd/syslog) — ignored",
+    "kind": "noise",
+    "preview": "{\"rule\":\"successful sudo to root executed.\"}"
+  },
+  {
+    "id": "log-1781331414753-dupl14",
+    "ts": "2026-06-13T06:16:54.753Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Not Kerberoasting — need Event 4769, T1558, or weak ticket encryption (etype > 0x07)",
+    "kind": "unknown",
+    "preview": "{\"rule\":\"windows user logoff\",\"agent\":\"WIN01\"}"
+  },
+  {
+    "id": "log-1781331414702-1vbfyn",
+    "ts": "2026-06-13T06:16:54.702Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Not Kerberoasting — need Event 4769, T1558, or weak ticket encryption (etype > 0x07)",
+    "kind": "unknown",
+    "preview": "{\"rule\":\"windows logon success\",\"agent\":\"WIN01\"}"
+  },
+  {
+    "id": "log-1781331384630-wz7r5h",
+    "ts": "2026-06-13T06:16:24.630Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Non-ITDR alert (sshd/syslog) — ignored",
+    "kind": "noise",
+    "preview": "{\"rule\":\"pam: login session closed.\"}"
+  },
+  {
+    "id": "log-1781331384583-eeto85",
+    "ts": "2026-06-13T06:16:24.583Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Non-ITDR alert (sshd/syslog) — ignored",
+    "kind": "noise",
+    "preview": "{\"rule\":\"pam: login session opened.\"}"
+  },
+  {
+    "id": "log-1781331384529-cg3xsz",
+    "ts": "2026-06-13T06:16:24.529Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Non-ITDR alert (sshd/syslog) — ignored",
+    "kind": "noise",
+    "preview": "{\"rule\":\"successful sudo to root executed.\"}"
+  },
+  {
+    "id": "log-1781331159953-hy22ox",
+    "ts": "2026-06-13T06:12:39.953Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Non-ITDR alert (sshd/syslog) — ignored",
+    "kind": "noise",
+    "preview": "{\"rule\":\"successful sudo to root executed.\"}"
+  },
+  {
+    "id": "log-1781331159897-m1ognz",
+    "ts": "2026-06-13T06:12:39.897Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Non-ITDR alert (sshd/syslog) — ignored",
+    "kind": "noise",
+    "preview": "{\"rule\":\"pam: login session closed.\"}"
+  },
+  {
+    "id": "log-1781331159835-ak629x",
+    "ts": "2026-06-13T06:12:39.835Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Non-ITDR alert (sshd/syslog) — ignored",
+    "kind": "noise",
+    "preview": "{\"rule\":\"pam: login session opened.\"}"
+  },
+  {
+    "id": "log-1781331020125-an7hsb",
+    "ts": "2026-06-13T06:10:20.125Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Non-ITDR alert (sshd/syslog) — ignored",
+    "kind": "noise",
+    "preview": "{\"rule\":\"successful sudo to root executed.\"}"
+  },
+  {
+    "id": "log-1781331020078-v36qld",
+    "ts": "2026-06-13T06:10:20.078Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Non-ITDR alert (sshd/syslog) — ignored",
+    "kind": "noise",
+    "preview": "{\"rule\":\"pam: login session opened.\"}"
+  },
+  {
+    "id": "log-1781331013025-n8k12z",
+    "ts": "2026-06-13T06:10:13.025Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Non-ITDR alert (sshd/syslog) — ignored",
+    "kind": "noise",
+    "preview": "{\"rule\":\"wazuh server started.\"}"
+  },
+  {
+    "id": "log-1781331007974-9fffl8",
+    "ts": "2026-06-13T06:10:07.974Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Non-ITDR alert (sshd/syslog) — ignored",
+    "kind": "noise",
+    "preview": "{\"rule\":\"pam: login session closed.\"}"
+  },
+  {
+    "id": "log-1781331003925-peboks",
+    "ts": "2026-06-13T06:10:03.925Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Non-ITDR alert (sshd/syslog) — ignored",
+    "kind": "noise",
+    "preview": "{\"rule\":\"listened ports status (netstat) changed (new port opened or closed).\"}"
+  },
+  {
+    "id": "log-1781330506110-7r8urx",
+    "ts": "2026-06-13T06:01:46.110Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Non-ITDR alert (sshd/syslog) — ignored",
+    "kind": "noise",
+    "preview": "{\"rule\":\"pam: login session opened.\"}"
+  },
+  {
+    "id": "log-1781330506047-2j2qwr",
+    "ts": "2026-06-13T06:01:46.047Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Non-ITDR alert (sshd/syslog) — ignored",
+    "kind": "noise",
+    "preview": "{\"rule\":\"successful sudo to root executed.\"}"
+  },
+  {
+    "id": "log-1781330505986-vb9r17",
+    "ts": "2026-06-13T06:01:45.986Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Non-ITDR alert (sshd/syslog) — ignored",
+    "kind": "noise",
+    "preview": "{\"rule\":\"pam: login session closed.\"}"
+  },
+  {
+    "id": "log-1781330472753-zjnw44",
+    "ts": "2026-06-13T06:01:12.753Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Non-ITDR alert (sshd/syslog) — ignored",
+    "kind": "noise",
+    "preview": "{\"rule\":\"pam: login session opened.\"}"
+  },
+  {
+    "id": "log-1781330472694-cgwb6t",
+    "ts": "2026-06-13T06:01:12.694Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Non-ITDR alert (sshd/syslog) — ignored",
+    "kind": "noise",
+    "preview": "{\"rule\":\"successful sudo to root executed.\"}"
+  },
+  {
+    "id": "log-1781330472638-cyfq7y",
+    "ts": "2026-06-13T06:01:12.638Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Non-ITDR alert (sshd/syslog) — ignored",
+    "kind": "noise",
+    "preview": "{\"rule\":\"pam: login session closed.\"}"
+  },
+  {
+    "id": "log-1781330420000-yb28of",
+    "ts": "2026-06-13T06:00:20.000Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Non-ITDR alert (sshd/syslog) — ignored",
+    "kind": "noise",
+    "preview": "{\"rule\":\"pam: login session opened.\"}"
+  },
+  {
+    "id": "log-1781330419951-6uzodw",
+    "ts": "2026-06-13T06:00:19.951Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Non-ITDR alert (sshd/syslog) — ignored",
+    "kind": "noise",
+    "preview": "{\"rule\":\"successful sudo to root executed.\"}"
+  },
+  {
+    "id": "log-1781330419900-03dtkp",
+    "ts": "2026-06-13T06:00:19.900Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Non-ITDR alert (sshd/syslog) — ignored",
+    "kind": "noise",
+    "preview": "{\"rule\":\"pam: login session closed.\"}"
+  },
+  {
+    "id": "log-1781330295679-y8fc1g",
+    "ts": "2026-06-13T05:58:15.679Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Non-ITDR alert (sshd/syslog) — ignored",
+    "kind": "noise",
+    "preview": "{\"rule\":\"root's crontab entry changed.\"}"
+  },
+  {
+    "id": "log-1781330284461-u7yyku",
+    "ts": "2026-06-13T05:58:04.461Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Not Kerberoasting — need Event 4769, T1558, or weak ticket encryption (etype > 0x07)",
+    "kind": "unknown",
+    "preview": "{\"rule\":\"windows command prompt started by an abnormal process\",\"agent\":\"WIN01\"}"
+  },
+  {
+    "id": "log-1781330270404-y1zmj2",
+    "ts": "2026-06-13T05:57:50.404Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Non-ITDR alert (sshd/syslog) — ignored",
+    "kind": "noise",
+    "preview": "{\"rule\":\"pam: login session closed.\"}"
+  },
+  {
+    "id": "log-1781330268352-et6r98",
+    "ts": "2026-06-13T05:57:48.352Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Non-ITDR alert (sshd/syslog) — ignored",
+    "kind": "noise",
+    "preview": "{\"rule\":\"successful sudo to root executed.\"}"
+  },
+  {
+    "id": "log-1781330230242-t8yzag",
+    "ts": "2026-06-13T05:57:10.242Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Non-ITDR alert (sshd/syslog) — ignored",
+    "kind": "noise",
+    "preview": "{\"rule\":\"pam: login session opened.\"}"
+  },
+  {
+    "id": "log-1781330230179-r5nnss",
+    "ts": "2026-06-13T05:57:10.179Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Non-ITDR alert (sshd/syslog) — ignored",
+    "kind": "noise",
+    "preview": "{\"rule\":\"sshd: authentication success.\"}"
+  },
+  {
+    "id": "log-1781330204058-nfbe7v",
+    "ts": "2026-06-13T05:56:44.058Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Non-ITDR alert (sshd/syslog) — ignored",
+    "kind": "noise",
+    "preview": "{\"rule\":\"sshd: authentication failed.\"}"
+  },
+  {
+    "id": "log-1781330202008-r6tyq9",
+    "ts": "2026-06-13T05:56:42.008Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Non-ITDR alert (sshd/syslog) — ignored",
+    "kind": "noise",
+    "preview": "{\"rule\":\"pam: user login failed.\"}"
+  },
+  {
+    "id": "log-1781330172951-zx9sy9",
+    "ts": "2026-06-13T05:56:12.951Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Not Kerberoasting — need Event 4769, T1558, or weak ticket encryption (etype > 0x07)",
+    "kind": "unknown",
+    "preview": "{\"rule\":\"windows command prompt started by an abnormal process\",\"agent\":\"SERVER01\"}"
+  },
+  {
+    "id": "log-1781329924793-j97tbe",
+    "ts": "2026-06-13T05:52:04.793Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Not Kerberoasting — need Event 4769, T1558, or weak ticket encryption (etype > 0x07)",
+    "kind": "unknown",
+    "preview": "{\"rule\":\"software protection service scheduled successfully.\",\"agent\":\"SERVER01\"}"
+  },
+  {
+    "id": "log-1781329888721-rw0yut",
+    "ts": "2026-06-13T05:51:28.721Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Not Kerberoasting — need Event 4769, T1558, or weak ticket encryption (etype > 0x07)",
+    "kind": "unknown",
+    "preview": "{\"rule\":\"windows defender: antimalware platform is running and in a healthy state\",\"agent\":\"SERVER01\"}"
+  },
+  {
+    "id": "log-1781329608522-bzkb02",
+    "ts": "2026-06-13T05:46:48.522Z",
+    "level": "webhook",
+    "message": "Webhook POST /api/webhook/wazuh → 400",
+    "ms": 2,
+    "status": 400
+  },
+  {
+    "id": "log-1781329608521-nlagjm",
+    "ts": "2026-06-13T05:46:48.521Z",
+    "level": "warn",
+    "message": "Webhook accepted but could not parse Kerberoasting alert",
+    "preview": "{\"rule\":\"windows logon success\",\"event_id\":4769}"
+  },
+  {
+    "id": "log-1781329608510-6hpg5w",
+    "ts": "2026-06-13T05:46:48.510Z",
+    "level": "webhook",
+    "message": "Webhook POST /api/webhook/wazuh → 400",
+    "ms": 3,
+    "status": 400
+  },
+  {
+    "id": "log-1781329608508-3l4x87",
+    "ts": "2026-06-13T05:46:48.508Z",
+    "level": "warn",
+    "message": "Webhook accepted but could not parse Kerberoasting alert",
+    "preview": "{\"rule\":\"windows logon success\",\"event_id\":4769,\"etype\":\"0x12\",\"agent\":\"SERVER01\"}"
+  },
+  {
+    "id": "log-1781329264321-jjiba5",
+    "ts": "2026-06-13T05:41:04.321Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Not Kerberoasting — need Event 4769, T1558, or weak ticket encryption (etype > 0x07)",
+    "kind": "unknown",
+    "preview": "{\"rule\":\"software protection service scheduled successfully.\",\"agent\":\"WIN01\"}"
+  },
+  {
+    "id": "log-1781329195242-fepyrb",
+    "ts": "2026-06-13T05:39:55.242Z",
+    "level": "webhook",
+    "message": "Webhook POST /api/webhook/wazuh → 400",
+    "ms": 3,
+    "status": 400
+  },
+  {
+    "id": "log-1781329195241-vwbeku",
+    "ts": "2026-06-13T05:39:55.241Z",
+    "level": "warn",
+    "message": "Webhook accepted but could not parse Kerberoasting alert",
+    "preview": "{\"rule\":\"windows logon success\",\"event_id\":4769}"
+  },
+  {
+    "id": "log-1781329195228-0vusqd",
+    "ts": "2026-06-13T05:39:55.228Z",
+    "level": "webhook",
+    "message": "Webhook POST /api/webhook/wazuh → 400",
+    "ms": 3,
+    "status": 400
+  },
+  {
+    "id": "log-1781329195226-nh1e1x",
+    "ts": "2026-06-13T05:39:55.226Z",
+    "level": "warn",
+    "message": "Webhook accepted but could not parse Kerberoasting alert",
+    "preview": "{\"rule\":\"windows logon success\",\"event_id\":4769,\"etype\":\"0x12\",\"agent\":\"SERVER01\"}"
+  },
+  {
+    "id": "log-1781329195168-gqjf7z",
+    "ts": "2026-06-13T05:39:55.168Z",
+    "level": "webhook",
+    "message": "Webhook POST /api/webhook/wazuh → 400",
+    "ms": 2,
+    "status": 400
+  },
+  {
+    "id": "log-1781329195167-zxgfsh",
+    "ts": "2026-06-13T05:39:55.167Z",
+    "level": "warn",
+    "message": "Webhook accepted but could not parse Kerberoasting alert",
+    "preview": "{\"rule\":\"windows logon success\",\"event_id\":4769}"
+  },
+  {
+    "id": "log-1781329195159-tz0586",
+    "ts": "2026-06-13T05:39:55.159Z",
+    "level": "webhook",
+    "message": "Webhook POST /api/webhook/wazuh → 400",
+    "ms": 3,
+    "status": 400
+  },
+  {
+    "id": "log-1781329195157-mp2xss",
+    "ts": "2026-06-13T05:39:55.157Z",
+    "level": "warn",
+    "message": "Webhook accepted but could not parse Kerberoasting alert",
+    "preview": "{\"rule\":\"windows logon success\",\"event_id\":4769,\"etype\":\"0x12\",\"agent\":\"SERVER01\"}"
+  },
+  {
+    "id": "log-1781329195108-dlsb6y",
+    "ts": "2026-06-13T05:39:55.108Z",
+    "level": "webhook",
+    "message": "Webhook POST /api/webhook/wazuh → 400",
+    "ms": 3,
+    "status": 400
+  },
+  {
+    "id": "log-1781329195106-zjb2d4",
+    "ts": "2026-06-13T05:39:55.106Z",
+    "level": "warn",
+    "message": "Webhook accepted but could not parse Kerberoasting alert",
+    "preview": "{\"rule\":\"windows logon success\",\"event_id\":4769}"
+  },
+  {
+    "id": "log-1781329195098-u6x92d",
+    "ts": "2026-06-13T05:39:55.098Z",
+    "level": "webhook",
+    "message": "Webhook POST /api/webhook/wazuh → 400",
+    "ms": 5,
+    "status": 400
+  },
+  {
+    "id": "log-1781329195096-yzjt91",
+    "ts": "2026-06-13T05:39:55.096Z",
+    "level": "warn",
+    "message": "Webhook accepted but could not parse Kerberoasting alert",
+    "preview": "{\"rule\":\"windows logon success\",\"event_id\":4769,\"etype\":\"0x12\",\"agent\":\"SERVER01\"}"
+  },
+  {
+    "id": "log-1781329067991-bvi18y",
+    "ts": "2026-06-13T05:37:47.991Z",
+    "level": "webhook",
+    "message": "Webhook POST /api/webhook/wazuh → 400",
+    "ms": 3,
+    "status": 400
+  },
+  {
+    "id": "log-1781329067989-zfwjtg",
+    "ts": "2026-06-13T05:37:47.989Z",
+    "level": "warn",
+    "message": "Webhook accepted but could not parse Kerberoasting alert",
+    "preview": "{\"rule\":\"windows logon success\",\"event_id\":4769}"
+  },
+  {
+    "id": "log-1781329067974-dveu53",
+    "ts": "2026-06-13T05:37:47.974Z",
+    "level": "webhook",
+    "message": "Webhook POST /api/webhook/wazuh → 400",
+    "ms": 3,
+    "status": 400
+  },
+  {
+    "id": "log-1781329067973-eo9y1k",
+    "ts": "2026-06-13T05:37:47.973Z",
+    "level": "warn",
+    "message": "Webhook accepted but could not parse Kerberoasting alert",
+    "preview": "{\"rule\":\"windows logon success\",\"event_id\":4769,\"etype\":\"0x12\",\"agent\":\"SERVER01\"}"
+  },
+  {
+    "id": "log-1781329050900-d06d18",
+    "ts": "2026-06-13T05:37:30.900Z",
+    "level": "webhook",
+    "message": "Webhook POST /api/webhook/wazuh → 400",
+    "ms": 1,
+    "status": 400
+  },
+  {
+    "id": "log-1781329050899-u89kri",
+    "ts": "2026-06-13T05:37:30.899Z",
+    "level": "warn",
+    "message": "Webhook accepted but could not parse Kerberoasting alert",
+    "preview": "{\"rule\":\"windows logon success\",\"event_id\":4769}"
+  },
+  {
+    "id": "log-1781329050892-wagj59",
+    "ts": "2026-06-13T05:37:30.892Z",
+    "level": "webhook",
+    "message": "Webhook POST /api/webhook/wazuh → 400",
+    "ms": 6,
+    "status": 400
+  },
+  {
+    "id": "log-1781329050890-4r0inr",
+    "ts": "2026-06-13T05:37:30.890Z",
+    "level": "warn",
+    "message": "Webhook accepted but could not parse Kerberoasting alert",
+    "preview": "{\"rule\":\"windows logon success\",\"event_id\":4769,\"etype\":\"0x12\",\"agent\":\"SERVER01\"}"
+  },
+  {
+    "id": "log-1781328295527-q2xyzm",
+    "ts": "2026-06-13T05:24:55.527Z",
+    "level": "webhook",
+    "message": "Webhook POST /api/webhook/wazuh → 400",
+    "ms": 6,
+    "status": 400
+  },
+  {
+    "id": "log-1781328295524-vjjiuq",
+    "ts": "2026-06-13T05:24:55.524Z",
+    "level": "warn",
+    "message": "Webhook accepted but could not parse Kerberoasting alert",
+    "preview": "{\"rule\":\"windows logon success\",\"event_id\":4769}"
+  },
+  {
+    "id": "log-1781328295484-tl7iya",
+    "ts": "2026-06-13T05:24:55.484Z",
+    "level": "webhook",
+    "message": "Webhook POST /api/webhook/wazuh → 400",
+    "ms": 14,
+    "status": 400
+  },
+  {
+    "id": "log-1781328295478-ssqn4p",
+    "ts": "2026-06-13T05:24:55.478Z",
+    "level": "warn",
+    "message": "Webhook accepted but could not parse Kerberoasting alert",
+    "preview": "{\"rule\":\"windows logon success\",\"event_id\":4769,\"etype\":\"0x12\",\"agent\":\"SERVER01\"}"
+  },
+  {
+    "id": "log-1781328124292-0wio6h",
+    "ts": "2026-06-13T05:22:04.292Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Not Kerberoasting — need Event 4769, T1558, or weak ticket encryption (etype > 0x07)",
+    "kind": "unknown",
+    "preview": "{\"rule\":\"software protection service scheduled successfully.\",\"agent\":\"SERVER01\"}"
+  },
+  {
+    "id": "log-1781327818941-wgpgr7",
+    "ts": "2026-06-13T05:16:58.941Z",
+    "level": "ai",
+    "message": "ARIA enriched incident alert-dc0a3c1e3f4d",
+    "incident_id": "alert-dc0a3c1e3f4d",
+    "headline": "Kerberoasting: svc-mssql@autograph.lab targets svc-mssql on SERVER01",
+    "actions": 4
+  },
+  {
+    "id": "log-1781327806111-utamxp",
+    "ts": "2026-06-13T05:16:46.111Z",
+    "level": "system",
+    "message": "Re-analyzing live Wazuh alert with ARIA",
+    "incident_id": "alert-dc0a3c1e3f4d",
+    "user": "svc-mssql@autograph.lab",
+    "target": "svc-mssql"
+  },
+  {
+    "id": "log-1781327505035-4kqp5t",
+    "ts": "2026-06-13T05:11:45.035Z",
+    "level": "system",
+    "message": "Dashboard reset — placeholder and simulation state cleared"
+  },
+  {
+    "id": "log-1781327486977-rxnpms",
+    "ts": "2026-06-13T05:11:26.977Z",
+    "level": "ai",
+    "message": "ARIA enriched incident alert-dc0a3c1e3f4d",
+    "incident_id": "alert-dc0a3c1e3f4d",
+    "headline": "svc-mssql@autograph.lab Kerberoasts svc-mssql on SERVER01",
+    "actions": 4
+  },
+  {
+    "id": "log-1781327481086-4yxb2j",
+    "ts": "2026-06-13T05:11:21.086Z",
+    "level": "webhook",
+    "message": "Webhook update for existing incident alert-dc0a3c1e3f4d",
+    "incident_id": "alert-dc0a3c1e3f4d",
+    "user": "svc-mssql@autograph.lab",
+    "target": "svc-mssql",
+    "risk": 70,
+    "host": "SERVER01",
+    "is_new": false
+  },
+  {
+    "id": "log-1781327408667-t3vcpa",
+    "ts": "2026-06-13T05:10:08.667Z",
+    "level": "action",
+    "message": "Containment executed on alert-dc0a3c1e3f4d",
+    "incident_id": "alert-dc0a3c1e3f4d",
+    "actions": 1,
+    "mode": "simulated",
+    "risk_before": 70,
+    "risk_after": 32
+  },
+  {
+    "id": "log-1781327408660-am033d",
+    "ts": "2026-06-13T05:10:08.660Z",
+    "level": "action",
+    "message": "Playbook dry-run: Reset service account password",
+    "incident_id": "alert-dc0a3c1e3f4d",
+    "playbook_id": "rotate_service_password",
+    "command": "Set-ADAccountPassword -Identity 'svc-mssql' -Reset -PassThru | Set-ADUser -ChangePasswordAtLogon $true",
+    "status": "simulated"
+  },
+  {
+    "id": "log-1781327000845-7t37v7",
+    "ts": "2026-06-13T05:03:20.845Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Non-ITDR alert (sshd/syslog) — ignored",
+    "kind": "noise",
+    "preview": "{\"rule\":\"pam: login session closed.\"}"
+  },
+  {
     "id": "log-1781326684676-fn51bh",
     "ts": "2026-06-13T04:58:04.676Z",
     "level": "webhook",

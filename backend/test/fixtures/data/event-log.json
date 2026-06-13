@@ -1,5 +1,139 @@
 [
   {
+    "id": "log-1781329216644-p38pkj",
+    "ts": "2026-06-13T05:40:16.644Z",
+    "level": "action",
+    "message": "Containment executed on alert-001",
+    "incident_id": "alert-001",
+    "actions": 5,
+    "mode": "simulated",
+    "risk_before": 87,
+    "risk_after": 32
+  },
+  {
+    "id": "log-1781329216643-5krqc8",
+    "ts": "2026-06-13T05:40:16.643Z",
+    "level": "action",
+    "message": "Playbook dry-run: Rotate credentials for exposed service account",
+    "incident_id": "alert-001",
+    "playbook_id": "rotate_service_password",
+    "command": "$newPwd = ConvertTo-SecureString -AsPlainText (([guid]::NewGuid().ToString('N') + 'Aa1!').Substring(0,16)) -Force\nSet-ADAccountPassword -Identity 'svc-sql' -Reset -NewPassword $newPwd -Server 'SERVER01'\nSet-ADUser -Identity 'svc-sql' -ChangePasswordAtLogon $true -Server 'SERVER01'",
+    "status": "simulated"
+  },
+  {
+    "id": "log-1781329216642-ydh5me",
+    "ts": "2026-06-13T05:40:16.642Z",
+    "level": "action",
+    "message": "Playbook dry-run: Investigate source user session",
+    "incident_id": "alert-001",
+    "playbook_id": "revoke_sessions",
+    "command": "Get-ADUser -Identity 'lab.test' -Properties LastLogonDate,LockedOut -Server 'SERVER01' | Format-List\n# Force logoff via SOAR / Reset-ComputerMachinePassword if needed",
+    "status": "simulated"
+  },
+  {
+    "id": "log-1781329216642-iphq97",
+    "ts": "2026-06-13T05:40:16.642Z",
+    "level": "action",
+    "message": "Playbook dry-run: Review SPN ownership",
+    "incident_id": "alert-001",
+    "playbook_id": "review_spn",
+    "command": "Get-ADUser -Identity 'svc-sql' -Properties ServicePrincipalName -Server 'SERVER01' | Select-Object Name,SamAccountName,ServicePrincipalName\n# Remove exposed SPN after review:\n# Set-ADUser -Identity 'svc-sql' -ServicePrincipalNames @{} -Server 'SERVER01'",
+    "status": "simulated"
+  },
+  {
+    "id": "log-1781329216641-nisu3q",
+    "ts": "2026-06-13T05:40:16.641Z",
+    "level": "action",
+    "message": "Playbook dry-run: Disable RC4 Kerberos encryption",
+    "incident_id": "alert-001",
+    "playbook_id": "rc4_hardening",
+    "command": "Set-ADDomain -Identity 'SERVER01' -Replace @{'msDS-SupportedEncryptionTypes'='24'} -Server 'SERVER01'",
+    "status": "simulated"
+  },
+  {
+    "id": "log-1781329216640-txwee3",
+    "ts": "2026-06-13T05:40:16.640Z",
+    "level": "action",
+    "message": "Playbook dry-run: Reset service account password",
+    "incident_id": "alert-001",
+    "playbook_id": "rotate_service_password",
+    "command": "$newPwd = ConvertTo-SecureString -AsPlainText (([guid]::NewGuid().ToString('N') + 'Aa1!').Substring(0,16)) -Force\nSet-ADAccountPassword -Identity 'svc-sql' -Reset -NewPassword $newPwd -Server 'SERVER01'\nSet-ADUser -Identity 'svc-sql' -ChangePasswordAtLogon $true -Server 'SERVER01'",
+    "status": "simulated"
+  },
+  {
+    "id": "log-1781329216607-zq7z53",
+    "ts": "2026-06-13T05:40:16.607Z",
+    "level": "system",
+    "message": "Dashboard reset — placeholder and simulation state cleared"
+  },
+  {
+    "id": "log-1781328453882-0tgibi",
+    "ts": "2026-06-13T05:27:33.882Z",
+    "level": "action",
+    "message": "Containment executed on alert-001",
+    "incident_id": "alert-001",
+    "actions": 5,
+    "mode": "simulated",
+    "risk_before": 87,
+    "risk_after": 32
+  },
+  {
+    "id": "log-1781328453876-p8yawq",
+    "ts": "2026-06-13T05:27:33.876Z",
+    "level": "action",
+    "message": "Playbook dry-run: Rotate credentials for exposed service account",
+    "incident_id": "alert-001",
+    "playbook_id": "rotate_service_password",
+    "command": "$newPwd = ConvertTo-SecureString -AsPlainText (([guid]::NewGuid().ToString('N') + 'Aa1!').Substring(0,16)) -Force\nSet-ADAccountPassword -Identity 'svc-sql' -Reset -NewPassword $newPwd -Server 'SERVER01'\nSet-ADUser -Identity 'svc-sql' -ChangePasswordAtLogon $true -Server 'SERVER01'",
+    "status": "simulated"
+  },
+  {
+    "id": "log-1781328453873-zpcfg2",
+    "ts": "2026-06-13T05:27:33.873Z",
+    "level": "action",
+    "message": "Playbook dry-run: Investigate source user session",
+    "incident_id": "alert-001",
+    "playbook_id": "revoke_sessions",
+    "command": "Get-ADUser -Identity 'lab.test' -Properties LastLogonDate,LockedOut -Server 'SERVER01' | Format-List\n# Force logoff via SOAR / Reset-ComputerMachinePassword if needed",
+    "status": "simulated"
+  },
+  {
+    "id": "log-1781328453869-3vxvg7",
+    "ts": "2026-06-13T05:27:33.869Z",
+    "level": "action",
+    "message": "Playbook dry-run: Review SPN ownership",
+    "incident_id": "alert-001",
+    "playbook_id": "review_spn",
+    "command": "Get-ADUser -Identity 'svc-sql' -Properties ServicePrincipalName -Server 'SERVER01' | Select-Object Name,SamAccountName,ServicePrincipalName\n# Remove exposed SPN after review:\n# Set-ADUser -Identity 'svc-sql' -ServicePrincipalNames @{} -Server 'SERVER01'",
+    "status": "simulated"
+  },
+  {
+    "id": "log-1781328453864-zka4h2",
+    "ts": "2026-06-13T05:27:33.864Z",
+    "level": "action",
+    "message": "Playbook dry-run: Disable RC4 Kerberos encryption",
+    "incident_id": "alert-001",
+    "playbook_id": "rc4_hardening",
+    "command": "Set-ADDomain -Identity 'SERVER01' -Replace @{'msDS-SupportedEncryptionTypes'='24'} -Server 'SERVER01'",
+    "status": "simulated"
+  },
+  {
+    "id": "log-1781328453857-m8hw24",
+    "ts": "2026-06-13T05:27:33.858Z",
+    "level": "action",
+    "message": "Playbook dry-run: Reset service account password",
+    "incident_id": "alert-001",
+    "playbook_id": "rotate_service_password",
+    "command": "$newPwd = ConvertTo-SecureString -AsPlainText (([guid]::NewGuid().ToString('N') + 'Aa1!').Substring(0,16)) -Force\nSet-ADAccountPassword -Identity 'svc-sql' -Reset -NewPassword $newPwd -Server 'SERVER01'\nSet-ADUser -Identity 'svc-sql' -ChangePasswordAtLogon $true -Server 'SERVER01'",
+    "status": "simulated"
+  },
+  {
+    "id": "log-1781328453726-519vy2",
+    "ts": "2026-06-13T05:27:33.726Z",
+    "level": "system",
+    "message": "Dashboard reset — placeholder and simulation state cleared"
+  },
+  {
     "id": "log-1781321812105-c85u8q",
     "ts": "2026-06-13T03:36:52.105Z",
     "level": "action",

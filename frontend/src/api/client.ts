@@ -183,14 +183,19 @@ export const api = {
     request<{ ok: boolean; status: SimulationStatus; incident?: Alert }>('/simulate/kerberoast', { method: 'POST' }),
   simulateReset: () => request<{ ok: boolean }>('/simulate/reset', { method: 'POST' }),
   simulateStatus: () => request<SimulationStatus>('/simulate/status'),
-  logs: (params?: { limit?: number; level?: string; incident_id?: string }) => {
+  logs: (params?: { limit?: number; offset?: number; level?: string; incident_id?: string }) => {
     const q = new URLSearchParams()
     if (params?.limit) q.set('limit', String(params.limit))
+    if (params?.offset) q.set('offset', String(params.offset))
     if (params?.level) q.set('level', params.level)
     if (params?.incident_id) q.set('incident_id', params.incident_id)
     const qs = q.toString()
-    return request<{ ok: boolean; count: number; events: EventLogEntry[] }>(`/logs${qs ? `?${qs}` : ''}`)
+    return request<{ ok: boolean; count: number; total: number; offset: number; limit: number; events: EventLogEntry[] }>(`/logs${qs ? `?${qs}` : ''}`)
   },
+  geo: (ip: string) =>
+    request<{ ok: boolean; ip: string; lat?: number; lon?: number; city?: string; country?: string; label?: string; private?: boolean; found?: boolean }>(
+      `/geo/${encodeURIComponent(ip)}`,
+    ),
   aiChat: (
     incidentId: string | undefined,
     message: string,

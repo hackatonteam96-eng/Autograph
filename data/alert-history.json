@@ -1,7 +1,156 @@
 [
   {
+    "id": "alert-86e9fc3d09be",
+    "time": "2026-06-13T07:51:25.376Z",
+    "source": "Wazuh",
+    "attack": "Kerberoasting",
+    "mitre": "T1558.003",
+    "severity": "medium",
+    "risk": 50,
+    "user": "desktop-ckob3kk$@autograph.lab",
+    "target": "desktop-ckob3kk$@autograph.lab",
+    "source_ip": "::ffff:192.168.10.130",
+    "host": "SERVER01",
+    "event_id": 4769,
+    "evidence": [
+      "Target account has SPN configured"
+    ],
+    "response": [
+      "Reset service account password",
+      "Disable RC4 Kerberos encryption",
+      "Review SPN ownership",
+      "Investigate source user session",
+      "Rotate credentials for exposed service account"
+    ],
+    "detection": {
+      "sigma_matched": true,
+      "indicators": {
+        "kerberoasting": true,
+        "rc4_encryption": false,
+        "service_account_spn": true
+      },
+      "multiple_tgs_count": 0,
+      "risk_breakdown": [
+        {
+          "factor": "kerberoasting",
+          "points": 35,
+          "description": "Kerberoasting alert — TGS requested for SPN-backed account"
+        },
+        {
+          "factor": "service_account_spn",
+          "points": 15,
+          "description": "Target account exposes Kerberos service principal (SPN)"
+        }
+      ]
+    },
+    "canonical_risk": 50,
+    "ingested_at": "2026-06-13T07:51:30.837Z",
+    "ingest_source": "webhook",
+    "last_webhook_at": "2026-06-13T07:51:30.837Z"
+  },
+  {
+    "id": "alert-8864a15bb1d6",
+    "time": "2026-06-13T07:54:27.581Z",
+    "source": "Wazuh",
+    "attack": "AS-REP Roasting",
+    "mitre": "T1558.004",
+    "severity": "medium",
+    "risk": 55,
+    "user": "svc-backup",
+    "target": "svc-backup",
+    "source_ip": "::ffff:192.168.10.132",
+    "host": "SERVER01",
+    "event_id": 4768,
+    "evidence": [
+      "AS-REP roasting — TGT requested without pre-authentication",
+      "RC4 encrypted service ticket requested"
+    ],
+    "response": [
+      "Disable pre-authentication not required on target account",
+      "Reset compromised account password",
+      "Review accounts with Do not require Kerberos preauth",
+      "Investigate source user session",
+      "Disable RC4 Kerberos encryption"
+    ],
+    "detection": {
+      "sigma_matched": true,
+      "indicators": {
+        "as_rep_roasting": true,
+        "rc4_encryption": true,
+        "kerberoasting": false
+      },
+      "multiple_tgs_count": 0,
+      "risk_breakdown": [
+        {
+          "factor": "as_rep_roasting",
+          "points": 35,
+          "description": "AS-REP roasting — TGT requested without Kerberos pre-authentication"
+        },
+        {
+          "factor": "rc4_encryption",
+          "points": 20,
+          "description": "RC4 ticket encryption enables offline cracking"
+        }
+      ]
+    },
+    "canonical_risk": 55,
+    "ingested_at": "2026-06-13T07:54:33.458Z",
+    "ingest_source": "webhook",
+    "last_webhook_at": "2026-06-13T07:54:33.458Z"
+  },
+  {
+    "id": "alert-da6a72d8e182",
+    "time": "2026-06-13T07:19:47.411Z",
+    "source": "Wazuh",
+    "attack": "AS-REP Roasting",
+    "mitre": "T1558.004",
+    "severity": "medium",
+    "risk": 55,
+    "user": "attacker",
+    "target": "attacker",
+    "source_ip": "",
+    "host": "SERVER01",
+    "event_id": 4768,
+    "evidence": [
+      "AS-REP roasting — TGT requested without pre-authentication",
+      "RC4 encrypted service ticket requested"
+    ],
+    "response": [
+      "Disable pre-authentication not required on target account",
+      "Reset compromised account password",
+      "Review accounts with Do not require Kerberos preauth",
+      "Investigate source user session",
+      "Disable RC4 Kerberos encryption"
+    ],
+    "detection": {
+      "sigma_matched": true,
+      "indicators": {
+        "as_rep_roasting": true,
+        "rc4_encryption": true,
+        "kerberoasting": false
+      },
+      "multiple_tgs_count": 0,
+      "risk_breakdown": [
+        {
+          "factor": "as_rep_roasting",
+          "points": 35,
+          "description": "AS-REP roasting — TGT requested without Kerberos pre-authentication"
+        },
+        {
+          "factor": "rc4_encryption",
+          "points": 20,
+          "description": "RC4 ticket encryption enables offline cracking"
+        }
+      ]
+    },
+    "canonical_risk": 55,
+    "ingested_at": "2026-06-13T07:19:47.411Z",
+    "ingest_source": "webhook",
+    "last_webhook_at": "2026-06-13T07:19:47.411Z"
+  },
+  {
     "id": "alert-dc0a3c1e3f4d",
-    "time": "2026-06-13T04:41:14.330Z",
+    "time": "2026-06-13T07:58:07.434Z",
     "source": "Wazuh",
     "attack": "Kerberoasting",
     "mitre": "T1558.003",
@@ -23,9 +172,9 @@
       "Investigate source user session",
       "Rotate credentials for exposed service account"
     ],
-    "ingested_at": "2026-06-13T04:41:19.129Z",
+    "ingested_at": "2026-06-13T07:58:12.769Z",
     "ingest_source": "webhook",
-    "last_webhook_at": "2026-06-13T04:41:19.129Z",
+    "last_webhook_at": "2026-06-13T07:58:12.769Z",
     "detection": {
       "sigma_matched": true,
       "indicators": {
@@ -67,6 +216,7 @@
     "ai_action_details": null,
     "ai_summary_model": null,
     "ai_actions_model": null,
-    "ai_enriched_at": null
+    "ai_enriched_at": null,
+    "canonical_risk": 70
   }
 ]

@@ -5,6 +5,7 @@
 
 const MITRE = {
   KERBEROASTING: "T1558.003",
+  AS_REP_ROASTING: "T1558.004",
   ACCOUNT_DISCOVERY: "T1087",
   GROUP_DISCOVERY: "T1069",
   VALID_ACCOUNTS: "T1078",
@@ -13,6 +14,7 @@ const MITRE = {
 /** Risk scoring weights — sum capped at 100 */
 const RISK_WEIGHTS = {
   KERBEROASTING: 35,
+  AS_REP_ROASTING: 35,
   RC4_ENCRYPTION: 20,
   MULTIPLE_TGS: 15,
   SERVICE_ACCOUNT_SPN: 15,
@@ -44,6 +46,7 @@ const RC4_ENCRYPTION_TYPES = new Set([
 ]);
 
 const KERBEROS_EVENT_ID = 4769;
+const AS_REP_EVENT_ID = 4768;
 
 const MULTIPLE_TGS_THRESHOLD = 3;
 
@@ -65,6 +68,7 @@ const PRIVILEGED_GROUP_PATTERNS = [
 
 const EVIDENCE_MESSAGES = {
   kerberoasting: "Kerberoasting pattern detected (TGS request for SPN-backed account)",
+  as_rep_roasting: "AS-REP roasting — TGT requested without pre-authentication",
   rc4: "RC4 encrypted service ticket requested",
   multiple_tgs: "Multiple Kerberos TGS requests from one user",
   spn: "Target account has SPN configured",
@@ -78,6 +82,7 @@ module.exports = {
   SEVERITY_THRESHOLDS,
   RC4_ENCRYPTION_TYPES,
   KERBEROS_EVENT_ID,
+  AS_REP_EVENT_ID,
   MULTIPLE_TGS_THRESHOLD,
   SERVICE_ACCOUNT_TYPES,
   PRIVILEGED_GROUP_PATTERNS,

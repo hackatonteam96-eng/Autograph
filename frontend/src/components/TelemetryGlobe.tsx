@@ -1,17 +1,17 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas } from '@react-three/fiber'
-import { motion, AnimatePresence } from 'motion/react'
 import * as THREE from 'three'
+import { api } from '../api/client'
 import { GlobeScene, type GlobePin } from './GlobeScene'
 
 const PIN_DETAIL: Record<string, (active: boolean, contained: boolean, ctx: PinContext) => string> = {
   dc01: (a, c, ctx) =>
     a && !c
-      ? `ANOMALY: Kerberos Event 4769 from ${ctx.sourceIp || 'lab network'}.`
+      ? `ANOMALY: Kerberos identity event from ${ctx.sourceIp || 'lab network'}.`
       : c ? 'CONTAINED: No further anomalous requests.' : 'NOMINAL: Log forwarding active.',
   attacker: (a, _c, ctx) =>
     a && ctx.user
-      ? `SOURCE: ${ctx.user} — Kerberoast TGS for ${ctx.target || 'SPN target'}.`
+      ? `SOURCE: ${ctx.user} — ${ctx.target ? `targeting ${ctx.target}` : 'identity attack path'}.`
       : 'NOMINAL: Awaiting live Wazuh telemetry.',
   sql: (_a, _c, ctx) =>
     ctx.target && ctx.host
@@ -21,6 +21,14 @@ const PIN_DETAIL: Record<string, (active: boolean, contained: boolean, ctx: PinC
 }
 
 type PinContext = { user?: string; target?: string; host?: string; sourceIp?: string }
+
+const LAB_DC = { lon: 49.8, lat: 40.4 }
+/** External threat origin — never overlap DC pin (avoids self-loop arcs) */
+const EXTERNAL_ORIGIN = { lon: -74.006, lat: 40.7128, label: 'External source' }
+
+function pinsTooClose(a: { lon: number; lat: number }, b: { lon: number; lat: number }) {
+  return Math.abs(a.lon - b.lon) < 1.2 && Math.abs(a.lat - b.lat) < 1.2
+}
 
 const ROLE_DOT: Record<GlobePin['role'], string> = {
   dc: 'tglobe__dot--dc',
@@ -59,6 +67,7 @@ export default function TelemetryGlobe({
   const [autoRotate, setAutoRotate] = useState(true)
   const [resetToken, setResetToken] = useState(0)
   const [tick, setTick] = useState(0)
+  const [attackerGeo, setAttackerGeo] = useState<{ lat: number; lon: number; label: string } | null>(null)
   const dpr = useDpr(expanded)
   const viewportRef = useRef<HTMLDivElement>(null)
 
@@ -74,18 +83,51 @@ export default function TelemetryGlobe({
 
   const ctx: PinContext = { user, target, host, sourceIp }
 
+  useEffect(() => {
+    if (!sourceIp?.trim()) {
+      setAttackerGeo(null)
+      return
+    }
+    let cancelled = false
+    api.geo(sourceIp).then((g) => {
+      if (cancelled) return
+      if (g.private || g.lat == null || g.lon == null) {
+        setAttackerGeo({
+          ...EXTERNAL_ORIGIN,
+          label: g.label || `${sourceIp} · external / lab perimeter`,
+        })
+        return
+      }
+      setAttackerGeo({ lat: g.lat, lon: g.lon, label: g.label || g.city || sourceIp })
+    }).catch(() => {
+      if (!cancelled) setAttackerGeo({ ...EXTERNAL_ORIGIN, label: `Source ${sourceIp}` })
+    })
+    return () => { cancelled = true }
+  }, [sourceIp])
+
   const pins: GlobePin[] = useMemo(() => {
     if (!user && !host) {
       return [
         { id: 'lab', label: 'LAB', sub: 'Awaiting Wazuh webhook', lon: 49.8, lat: 40.4, role: 'dc' },
       ]
     }
+    let attackerLon = attackerGeo?.lon ?? EXTERNAL_ORIGIN.lon
+    let attackerLat = attackerGeo?.lat ?? EXTERNAL_ORIGIN.lat
+    if (pinsTooClose({ lon: attackerLon, lat: attackerLat }, LAB_DC)) {
+      attackerLon = EXTERNAL_ORIGIN.lon
+      attackerLat = EXTERNAL_ORIGIN.lat
+    }
+    const attackerSub = attackerGeo?.label
+      ? attackerGeo.label
+      : sourceIp
+        ? `Source ${sourceIp}`
+        : 'External threat origin'
     return [
-      { id: 'dc01', label: host || 'DC', sub: 'Alert source host', lon: 49.8, lat: 40.4, role: 'dc' },
-      { id: 'attacker', label: user?.split('@')[0] || 'Source', sub: 'Kerberoast source', lon: -77.0, lat: 38.9, role: 'attacker' },
-      { id: 'sql', label: target || 'Target', sub: 'Service account / SPN', lon: 13.4, lat: 52.5, role: 'asset' },
+      { id: 'dc01', label: host || 'DC', sub: 'Domain controller / alert host', lon: LAB_DC.lon, lat: LAB_DC.lat, role: 'dc' },
+      { id: 'attacker', label: user?.split('@')[0] || 'Source', sub: attackerSub, lon: attackerLon, lat: attackerLat, role: 'attacker' },
+      { id: 'sql', label: target || 'Target', sub: 'Target identity', lon: 13.4, lat: 52.5, role: 'asset' },
     ]
-  }, [user, target, host])
+  }, [user, target, host, sourceIp, attackerGeo])
 
   useEffect(() => {
     const id = window.setInterval(() => setTick((t) => t + 1), 1200)
@@ -158,17 +200,10 @@ export default function TelemetryGlobe({
       <div className="tglobe__hud">
         <div className="tglobe__top">
           {expanded && (
-            <motion.div
-              className="tglobe__stats"
-              initial={{ opacity: 0, y: -8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-            >
+            <div className="tglobe__stats">
               <div className={`tglobe__stat ${active ? 'is-alert' : ''}`}>
                 <span>Events/min</span>
-                <motion.strong key={eventsPerMin} initial={{ opacity: 0.4, y: 4 }} animate={{ opacity: 1, y: 0 }}>
-                  {eventsPerMin || '—'}
-                </motion.strong>
+                <strong>{eventsPerMin || '—'}</strong>
               </div>
               <div className="tglobe__stat">
                 <span>Regions</span>
@@ -176,15 +211,13 @@ export default function TelemetryGlobe({
               </div>
               <div className="tglobe__stat">
                 <span>Latency</span>
-                <motion.strong key={latency} initial={{ opacity: 0.4 }} animate={{ opacity: 1 }}>
-                  {latency ? `${latency}ms` : '—'}
-                </motion.strong>
+                <strong>{latency ? `${latency}ms` : '—'}</strong>
               </div>
               <div className={`tglobe__stat ${active ? 'is-alert' : ''}`}>
                 <span>Corridor</span>
                 <strong>{active ? (contained ? 'Closed' : 'Open') : 'Idle'}</strong>
               </div>
-            </motion.div>
+            </div>
           )}
 
           <div className="tglobe__legend">
@@ -209,15 +242,8 @@ export default function TelemetryGlobe({
           </div>
         </div>
 
-        <AnimatePresence>
-          {selectedPin && expanded && (
-            <motion.aside
-              className={`tglobe__detail tglobe__detail--${selectedPin.role}`}
-              initial={{ opacity: 0, x: -16 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -8 }}
-              transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-            >
+        {selectedPin && expanded && (
+            <aside className={`tglobe__detail tglobe__detail--${selectedPin.role}`}>
               <div className="tglobe__detail-head">
                 <span className={`tglobe__dot ${ROLE_DOT[selectedPin.role]}`} />
                 <div>
@@ -226,12 +252,12 @@ export default function TelemetryGlobe({
                 </div>
               </div>
               <p className="tglobe__detail-coords">
-                {selectedPin.lat.toFixed(2)}°N · {selectedPin.lon.toFixed(2)}°E
+                {Math.abs(selectedPin.lat).toFixed(2)}°{selectedPin.lat >= 0 ? 'N' : 'S'} · {Math.abs(selectedPin.lon).toFixed(2)}°{selectedPin.lon >= 0 ? 'E' : 'W'}
+                {selectedPin.id === 'attacker' && attackerGeo?.label ? ` · ${attackerGeo.label}` : ''}
               </p>
               <p>{(PIN_DETAIL[selectedPin.id] ?? (() => 'Live lab telemetry.'))(active, contained, ctx)}</p>
-            </motion.aside>
+            </aside>
           )}
-        </AnimatePresence>
 
         <div className="tglobe__footer">
           <div className={`tglobe__status ${statusClass}`}>

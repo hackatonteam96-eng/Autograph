@@ -237,7 +237,26 @@ test("wazuh filter accepts Yara weak encryption (etype > 0x07)", () => {
   };
   const result = classifyWazuhPayload(yaraPayload);
   assert.strictEqual(result.accept, true);
-  assert.strictEqual(result.kind, "kerberos");
+  assert.strictEqual(result.kind, "itdr");
+});
+
+test("wazuh filter accepts AS-REP roasting AuthGraph rule", () => {
+  const { classifyWazuhPayload, isItdrAlert } = require("./wazuh_filter");
+  const { buildAlertFromWazuhItem } = require("./correlator");
+  const asRepPayload = {
+    rule: "authgraph: as-rep roasting - single rc4 tgt without pre-authentication",
+    etype: "0x17",
+    agent: { name: "SERVER01" },
+    user: "svc-mssql",
+  };
+  const classified = classifyWazuhPayload(asRepPayload);
+  assert.strictEqual(classified.accept, true);
+  assert.strictEqual(classified.kind, "itdr");
+  const alert = buildAlertFromWazuhItem(asRepPayload, { source: "Wazuh" });
+  assert.ok(alert);
+  assert.strictEqual(alert.attack, "AS-REP Roasting");
+  assert.strictEqual(alert.mitre, "T1558.004");
+  assert.ok(isItdrAlert(alert));
 });
 
 console.log(`\nResults: ${passed} passed, ${failed} failed\n`);
