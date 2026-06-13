@@ -1,0 +1,58 @@
+title: Brute Force - Privileged Account Targeting (Event 4625)
+id: authgraph-bf-05-admin-account-brute
+status: experimental
+description: |
+  Detects brute force attempts against privileged-looking accounts (admin,
+  administrator, root patterns). Attackers prioritize high-value usernames.
+  5+ wrong-password failures against the same privileged account+IP in 5 minutes.
+author: Gular — AuthGraph ITDR Detection Team
+date: 2026/06/13
+references:
+  - https://attack.mitre.org/techniques/T1110/001/
+  - https://attack.mitre.org/techniques/T1078/
+tags:
+  - attack.credential_access
+  - attack.t1110.001
+  - attack.privilege_escalation
+  - attack.t1078
+logsource:
+  product: windows
+  service: security
+detection:
+  selection:
+    EventID: 4625
+    LogonType:
+      - 3
+      - 2
+      - 10
+    SubStatus:
+      - '0xC000006A'
+      - '0xc000006a'
+  filter_privileged_name:
+    TargetUserName|contains:
+      - 'admin'
+      - 'Admin'
+      - 'ADMIN'
+      - 'administrator'
+      - 'Administrator'
+      - 'root'
+      - 'svc_admin'
+  filter_null_ip:
+    IpAddress:
+      - '-'
+      - ''
+  filter_loopback:
+    IpAddress:
+      - '127.0.0.1'
+      - '::1'
+  condition: selection and filter_privileged_name and not 1 of filter_null_ip, filter_loopback | count() by TargetUserName, IpAddress > 5
+  timeframe: 5m
+falsepositives:
+  - IT admin mistyping password on privileged account
+  - PAM/jump box with wrong cached admin credentials
+level: high
+fields:
+  - TargetUserName
+  - IpAddress
+  - LogonType
+  - SubStatus

@@ -34,6 +34,25 @@ MITRE: **T1110.003** — one source IP, many distinct failed logons in a short w
 
 **DC audit policy:** Audit Logon → Failure
 
+## Brute force
+
+**6 rule** → [`brute-force/`](./brute-force/README.md)
+
+| # | Rule | Event |
+|---|------|-------|
+| 01 | Failed logon burst (same user + IP) | 4625 correlation |
+| 02 | Distributed brute (one account, many IPs) | 4625 correlation |
+| 03 | Kerberos pre-auth failure burst | 4771 correlation |
+| 04 | RDP brute force | 4625 correlation |
+| 05 | Privileged account targeting | 4625 correlation |
+| 06 | Account lockout | 4740 |
+
+Primary entry: [`brute-force.yml`](./brute-force.yml)
+
+MITRE: **T1110.001** — many passwords against one account (vs spraying: one password, many accounts).
+
+**DC audit policy:** Audit Logon → Failure; Kerberos Authentication Service → Failure
+
 ## AS-REP roasting
 
 **6 rule** → [`asreproasting/`](./asreproasting/README.md)
@@ -75,10 +94,10 @@ MITRE: **T1558.001** — forged Kerberos TGT (krbtgt hash) used for domain-wide 
 ## Wazuh import
 
 1. Hər YAML-ı Wazuh Sigma converter və ya manual XML rule-a çevir
-2. **Correlation rule-lar** (kerberoasting 02, 03, 04, 11, 13; password-spraying.yml; asreproasting 02; golden-ticket 02) üçün Wazuh `frequency` + `same_field` / `different_field` istifadə et
+2. **Correlation rule-lar** (kerberoasting 02, 03, 04, 11, 13; password-spraying.yml; brute-force 01–05; asreproasting 02; golden-ticket 02) üçün Wazuh `frequency` + `same_field` / `different_field` istifadə et
 3. DC agent + Kerberos / Logon audit policy aktiv olmalıdır
 
-Ətraflı: [`kerberoasting/README.md`](./kerberoasting/README.md) · [`asreproasting/README.md`](./asreproasting/README.md) · [`golden-ticket/README.md`](./golden-ticket/README.md)
+Ətraflı: [`kerberoasting/README.md`](./kerberoasting/README.md) · [`brute-force/README.md`](./brute-force/README.md) · [`asreproasting/README.md`](./asreproasting/README.md) · [`golden-ticket/README.md`](./golden-ticket/README.md)
 
 ## Export shape
 

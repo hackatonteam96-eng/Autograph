@@ -1,0 +1,54 @@
+title: Brute Force - Failed Logon Burst Against Single Account (Event 4625)
+id: authgraph-bf-01-logon-burst
+status: experimental
+description: |
+  Detects password guessing (T1110.001) via failed logon events (4625).
+  One source IP targets the same username with 10+ wrong-password failures
+  in 5 minutes. Core brute force indicator — opposite of password spraying.
+author: Gular — AuthGraph ITDR Detection Team
+date: 2026/06/13
+references:
+  - https://attack.mitre.org/techniques/T1110/001/
+  - https://learn.microsoft.com/en-us/windows/security/threat-protection/auditing/event-4625
+tags:
+  - attack.credential_access
+  - attack.t1110.001
+logsource:
+  product: windows
+  service: security
+detection:
+  selection:
+    EventID: 4625
+    LogonType:
+      - 3
+      - 2
+      - 10
+    SubStatus:
+      - '0xC000006A'
+      - '0xc000006a'
+  filter_null_ip:
+    IpAddress:
+      - '-'
+      - ''
+  filter_loopback:
+    IpAddress:
+      - '127.0.0.1'
+      - '::1'
+  filter_machine_accounts:
+    TargetUserName|endswith: '$'
+  filter_anonymous:
+    TargetUserName:
+      - 'ANONYMOUS LOGON'
+      - '-'
+  condition: selection and not 1 of filter_* | count() by TargetUserName, IpAddress > 10
+  timeframe: 5m
+falsepositives:
+  - User repeatedly mistyping password
+  - Application with wrong stored credentials for one account
+level: medium
+fields:
+  - IpAddress
+  - TargetUserName
+  - TargetDomainName
+  - LogonType
+  - SubStatus

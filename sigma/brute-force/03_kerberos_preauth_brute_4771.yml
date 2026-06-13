@@ -1,0 +1,45 @@
+title: Brute Force - Kerberos Pre-Authentication Failure Burst (Event 4771)
+id: authgraph-bf-03-kerberos-preauth-brute
+status: experimental
+description: |
+  Detects Kerberos password guessing via Event 4771 pre-authentication failures.
+  Attack tools hammer one account with wrong passwords over Kerberos before NTLM
+  fallback. 10+ failures (Status 0x18) for the same user+IP within 5 minutes.
+author: Gular — AuthGraph ITDR Detection Team
+date: 2026/06/13
+references:
+  - https://attack.mitre.org/techniques/T1110/001/
+  - https://learn.microsoft.com/en-us/windows/security/threat-protection/auditing/event-4771
+tags:
+  - attack.credential_access
+  - attack.t1110.001
+logsource:
+  product: windows
+  service: security
+detection:
+  selection:
+    EventID: 4771
+    Status:
+      - '0x18'
+      - '0x12'
+  filter_machine_accounts:
+    TargetUserName|endswith: '$'
+  filter_null_ip:
+    IpAddress:
+      - '-'
+      - ''
+  filter_loopback:
+    IpAddress:
+      - '127.0.0.1'
+      - '::1'
+  condition: selection and not 1 of filter_* | count() by TargetUserName, IpAddress > 10
+  timeframe: 5m
+falsepositives:
+  - User with expired password repeatedly attempting Kerberos logon
+  - Misconfigured Kerberos client with wrong password cached
+level: medium
+fields:
+  - TargetUserName
+  - IpAddress
+  - Status
+  - ServiceName

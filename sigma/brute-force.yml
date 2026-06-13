@@ -1,0 +1,63 @@
+title: Brute Force - Multiple Failed Logons Against Single Account
+id: authgraph-brute-force-4625
+status: experimental
+description: |
+  Primary brute force rule — delegates to full suite in sigma/brute-force/.
+  Detects Event 4625 when one source IP generates 10+ failed logon attempts
+  against the same username within 5 minutes — many passwords, one account.
+  Complements password-spraying.yml (one password, many accounts).
+  Deploy on Domain Controllers with Audit Logon → Failure enabled.
+author: Gular — AuthGraph ITDR Detection Team
+date: 2026/06/13
+references:
+  - https://attack.mitre.org/techniques/T1110/001/
+  - ./brute-force/README.md
+tags:
+  - attack.credential_access
+  - attack.t1110.001
+logsource:
+  product: windows
+  service: security
+  definition: |
+    Requirements on ALL Domain Controllers:
+    - Advanced Audit Policy: Audit Logon → Failure
+    - Wazuh agent collecting Security channel (eventchannel)
+detection:
+  selection:
+    EventID: 4625
+    LogonType:
+      - 3
+      - 2
+      - 10
+    SubStatus:
+      - '0xC000006A'
+      - '0xc000006a'
+  filter_null_ip:
+    IpAddress:
+      - '-'
+      - ''
+  filter_loopback:
+    IpAddress:
+      - '127.0.0.1'
+      - '::1'
+  filter_machine_accounts:
+    TargetUserName|endswith: '$'
+  filter_anonymous:
+    TargetUserName:
+      - 'ANONYMOUS LOGON'
+      - '-'
+  condition: selection and not 1 of filter_* | count() by TargetUserName, IpAddress > 10
+  timeframe: 5m
+falsepositives:
+  - User repeatedly mistyping password at login screen
+  - Misconfigured application with wrong stored password for a service account
+  - Mobile device with outdated cached credentials syncing repeatedly
+level: medium
+fields:
+  - EventID
+  - IpAddress
+  - TargetUserName
+  - TargetDomainName
+  - LogonType
+  - SubStatus
+  - WorkstationName

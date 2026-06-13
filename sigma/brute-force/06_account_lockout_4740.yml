@@ -1,0 +1,34 @@
+title: Brute Force - Account Lockout After Failed Logon Campaign (Event 4740)
+id: authgraph-bf-06-account-lockout
+status: experimental
+description: |
+  Detects AD account lockout (4740) — often the outcome of a successful or
+  near-successful brute force campaign. Treat as high-priority follow-up to
+  rules 01–05; investigate preceding 4625/4771 bursts for the same TargetUserName.
+author: Gular — AuthGraph ITDR Detection Team
+date: 2026/06/13
+references:
+  - https://attack.mitre.org/techniques/T1110/001/
+  - https://learn.microsoft.com/en-us/windows/security/threat-protection/auditing/event-4740
+tags:
+  - attack.credential_access
+  - attack.t1110.001
+  - attack.impact
+logsource:
+  product: windows
+  service: security
+detection:
+  selection:
+    EventID: 4740
+  filter_machine_accounts:
+    TargetUserName|endswith: '$'
+  condition: selection and not filter_machine_accounts
+falsepositives:
+  - Legitimate user lockout from forgotten password or typo loop
+  - Misconfigured service account exceeding lockout threshold
+level: high
+fields:
+  - TargetUserName
+  - TargetDomainName
+  - SubjectUserName
+  - SubjectDomainName

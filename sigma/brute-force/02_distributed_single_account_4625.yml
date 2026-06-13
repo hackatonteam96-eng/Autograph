@@ -1,0 +1,44 @@
+title: Brute Force - Distributed Failed Logons Against Single Account (Event 4625)
+id: authgraph-bf-02-distributed-account
+status: experimental
+description: |
+  Detects distributed brute force where many failed logons target one account
+  from multiple source IPs (botnet, proxy rotation, cloud IP churn).
+  20+ wrong-password failures against the same username within 10 minutes,
+  regardless of source IP count.
+author: Gular — AuthGraph ITDR Detection Team
+date: 2026/06/13
+references:
+  - https://attack.mitre.org/techniques/T1110/001/
+tags:
+  - attack.credential_access
+  - attack.t1110.001
+logsource:
+  product: windows
+  service: security
+detection:
+  selection:
+    EventID: 4625
+    LogonType:
+      - 3
+      - 10
+    SubStatus:
+      - '0xC000006A'
+      - '0xc000006a'
+  filter_machine_accounts:
+    TargetUserName|endswith: '$'
+  filter_anonymous:
+    TargetUserName:
+      - 'ANONYMOUS LOGON'
+      - '-'
+  condition: selection and not 1 of filter_* | count() by TargetUserName > 20
+  timeframe: 10m
+falsepositives:
+  - Widely used service account with misconfigured clients across many hosts
+  - SSO or VPN gateway retry storms for one user
+level: high
+fields:
+  - TargetUserName
+  - TargetDomainName
+  - IpAddress
+  - SubStatus

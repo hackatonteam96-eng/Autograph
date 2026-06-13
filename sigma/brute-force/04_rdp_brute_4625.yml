@@ -1,0 +1,49 @@
+title: Brute Force - RDP Failed Logon Burst (Event 4625)
+id: authgraph-bf-04-rdp-brute
+status: experimental
+description: |
+  Detects RDP brute force (LogonType 10 RemoteInteractive). Attackers scan for
+  exposed RDP and hammer one account with password guesses. 8+ failed RDP logons
+  for the same user+IP within 5 minutes.
+author: Gular — AuthGraph ITDR Detection Team
+date: 2026/06/13
+references:
+  - https://attack.mitre.org/techniques/T1110/001/
+  - https://attack.mitre.org/techniques/T1021/001/
+tags:
+  - attack.credential_access
+  - attack.t1110.001
+  - attack.lateral_movement
+  - attack.t1021.001
+logsource:
+  product: windows
+  service: security
+detection:
+  selection:
+    EventID: 4625
+    LogonType: 10
+    SubStatus:
+      - '0xC000006A'
+      - '0xc000006a'
+  filter_null_ip:
+    IpAddress:
+      - '-'
+      - ''
+  filter_loopback:
+    IpAddress:
+      - '127.0.0.1'
+      - '::1'
+  filter_machine_accounts:
+    TargetUserName|endswith: '$'
+  condition: selection and not 1 of filter_* | count() by TargetUserName, IpAddress > 8
+  timeframe: 5m
+falsepositives:
+  - Administrator repeatedly failing RDP login after password change
+  - Automated RDP health checks with wrong credentials
+level: high
+fields:
+  - IpAddress
+  - TargetUserName
+  - LogonType
+  - SubStatus
+  - WorkstationName
