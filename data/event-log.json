@@ -1,5 +1,50 @@
 [
   {
+    "id": "log-1781344817089-dsflo9",
+    "ts": "2026-06-13T10:00:17.099Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Non-ITDR alert (sshd/syslog) — ignored",
+    "kind": "noise",
+    "preview": "{\"rule\":\"software protection service scheduled successfully.\"}"
+  },
+  {
+    "id": "log-1781344817084-ksv7hi",
+    "ts": "2026-06-13T10:00:17.084Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Not an ITDR identity alert — need Kerberos/AS-REP rule, T1558, or AuthGraph detection",
+    "kind": "unknown",
+    "preview": "{\"rule\":\"software protection service scheduled successfully.\",\"agent\":\"SERVER01\"}"
+  },
+  {
+    "id": "log-1781344817027-xqjk0q",
+    "ts": "2026-06-13T10:00:17.027Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Non-ITDR alert (sshd/syslog) — ignored",
+    "kind": "noise",
+    "preview": "{\"rule\":\"windows defender: antimalware platform is running and in a healthy state\"}"
+  },
+  {
+    "id": "log-1781344816965-a088yi",
+    "ts": "2026-06-13T10:00:16.965Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Not an ITDR identity alert — need Kerberos/AS-REP rule, T1558, or AuthGraph detection",
+    "kind": "unknown",
+    "preview": "{\"rule\":\"windows defender: antimalware platform is running and in a healthy state\",\"agent\":\"SERVER01\"}"
+  },
+  {
+    "id": "log-1781343381152-ufrfnd",
+    "ts": "2026-06-13T09:36:21.152Z",
+    "level": "webhook",
+    "message": "Webhook update for existing incident alert-86e9fc3d09be",
+    "incident_id": "alert-86e9fc3d09be",
+    "user": "desktop-ckob3kk$@autograph.lab",
+    "target": "desktop-ckob3kk$@autograph.lab",
+    "risk": 50,
+    "host": "SERVER01",
+    "attack": "Kerberoasting",
+    "is_new": false
+  },
+  {
     "id": "log-1781337492792-anxenb",
     "ts": "2026-06-13T07:58:12.792Z",
     "level": "webhook",

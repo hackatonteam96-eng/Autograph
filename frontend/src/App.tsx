@@ -846,7 +846,7 @@ Use separate \`\`\`powershell code blocks. Include -Server '${host}' on every Ge
             title="Generate CISO-grade executive PDF (DeepSeek v4-pro)"
           >
             <FilePdf size={14} weight="duotone" />
-            {exportingReport === 'pdf' ? 'Generating…' : 'Executive PDF'}
+            {exportingReport === 'pdf' ? 'Generating…' : 'PDF'}
           </button>
           <button
             type="button"
@@ -856,7 +856,7 @@ Use separate \`\`\`powershell code blocks. Include -Server '${host}' on every Ge
             title="Generate CISO-grade executive DOCX (DeepSeek v4-pro)"
           >
             <FileDoc size={14} weight="duotone" />
-            {exportingReport === 'docx' ? 'Generating…' : 'Executive DOCX'}
+            {exportingReport === 'docx' ? 'Generating…' : 'DOCX'}
           </button>
           <time className="ag__clock">{clock}</time>
         </div>

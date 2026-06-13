@@ -1,7 +1,7 @@
 [
   {
     "id": "alert-86e9fc3d09be",
-    "time": "2026-06-13T07:51:25.376Z",
+    "time": "2026-06-13T09:36:16.287Z",
     "source": "Wazuh",
     "attack": "Kerberoasting",
     "mitre": "T1558.003",
@@ -44,9 +44,9 @@
       ]
     },
     "canonical_risk": 50,
-    "ingested_at": "2026-06-13T07:51:30.837Z",
+    "ingested_at": "2026-06-13T09:36:21.152Z",
     "ingest_source": "webhook",
-    "last_webhook_at": "2026-06-13T07:51:30.837Z"
+    "last_webhook_at": "2026-06-13T09:36:21.152Z"
   },
   {
     "id": "alert-8864a15bb1d6",
