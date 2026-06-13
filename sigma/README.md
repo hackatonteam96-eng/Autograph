@@ -22,11 +22,23 @@
 
 Primary entry: [`kerberoasting.yml`](./kerberoasting.yml)
 
+## Password spraying
+
+**1 rule** → [`password-spraying.yml`](./password-spraying.yml)
+
+| Rule | Event | Type |
+|------|-------|------|
+| Failed logon spray (5+ users / 5 min, same IP) | **4625** | correlation |
+
+MITRE: **T1110.003** — one source IP, many distinct failed logons in a short window.
+
+**DC audit policy:** Audit Logon → Failure
+
 ## Wazuh import
 
 1. Hər YAML-ı Wazuh Sigma converter və ya manual XML rule-a çevir
-2. **Correlation rule-lar** (02, 03, 04, 11, 13) üçün Wazuh `frequency` + `same_field` / `different_field` istifadə et
-3. DC agent + Kerberos audit policy aktiv olmalıdır
+2. **Correlation rule-lar** (kerberoasting 02, 03, 04, 11, 13; password-spraying.yml) üçün Wazuh `frequency` + `same_field` / `different_field` istifadə et
+3. DC agent + Kerberos / Logon audit policy aktiv olmalıdır
 
 Ətraflı: [`kerberoasting/README.md`](./kerberoasting/README.md)
 
