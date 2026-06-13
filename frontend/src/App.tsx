@@ -36,11 +36,11 @@ const NAV: { id: View; label: string; icon: typeof SquaresFour }[] = [
 ]
 
 const PIPELINE = [
-  { label: 'Active Directory', sub: 'Event 4769', ok: true },
-  { label: 'Wazuh Agent', sub: 'Log forward', ok: true },
-  { label: 'Sigma Rule', sub: 'T1558.003', ok: true },
-  { label: 'AuthGraph', sub: 'Correlator', ok: (connected: boolean) => connected },
-  { label: 'ARIA AI', sub: 'v4-flash / v4-pro', ok: true },
+  { label: 'Active Directory', sub: 'Event 4769' },
+  { label: 'Wazuh SIEM', sub: '0x17 alert' },
+  { label: 'Sigma Rule', sub: 'T1558.003' },
+  { label: 'AuthGraph', sub: 'Correlator' },
+  { label: 'ARIA AI', sub: 'v4-flash / v4-pro' },
 ]
 
 const timeline = [
@@ -72,6 +72,7 @@ function AnimatedCounter({ value }: { value: number }) {
 export default function App() {
   const [view, setView] = useState<View>('command')
   const [connected, setConnected] = useState(false)
+  const [wazuhLive, setWazuhLive] = useState(false)
   const [alert, setAlert] = useState<Alert | null>(null)
   const [attackPath, setAttackPath] = useState<AttackPath | null>(null)
   const [sigmaYaml, setSigmaYaml] = useState('')
@@ -92,6 +93,7 @@ export default function App() {
         api.health(), api.incidents(), api.attackPath(), api.sigma(),
       ])
       setConnected(health.ok)
+      setWazuhLive(Boolean(health.data?.wazuh_real))
       setAttackPath(path)
       setSigmaYaml(sigma.yaml)
       const current = incidents[0] ?? null
@@ -113,10 +115,11 @@ export default function App() {
     refresh()
     const poll = window.setInterval(async () => {
       try {
-        const [status, incidents] = await Promise.all([api.simulateStatus(), api.incidents()])
+        const [status, incidents, health] = await Promise.all([api.simulateStatus(), api.incidents(), api.health()])
+        setWazuhLive(Boolean(health.data?.wazuh_real))
         if (status.active) { setDemoStep(status.step); setRiskScore(status.risk); setTimelineCount(status.timeline_count) }
         const live = incidents[0]
-        if (live && live.risk >= 80 && !live.simulation_active) {
+        if (live && live.risk >= 70 && !live.simulation_active) {
           setDemoStep(3); setRiskScore(live.risk); setTimelineCount(5); setAlert(live)
         }
       } catch { /* offline */ }
@@ -131,12 +134,13 @@ export default function App() {
     return () => window.clearInterval(id)
   }, [])
 
-  useEffect(() => {
-    if (!alert?.id || demoStep === 0) return
-    api.aiRespond(alert.id).then((r) => setAiActions(r.actions)).catch(() => undefined)
-  }, [alert?.id, demoStep])
+  const hasIncident = demoStep > 0 || (alert?.risk ?? 0) >= 70 || wazuhLive
 
-  const hasIncident = demoStep > 0 || (alert?.risk ?? 0) >= 80
+  useEffect(() => {
+    if (!alert?.id || !hasIncident) return
+    api.aiRespond(alert.id).then((r) => setAiActions(r.actions)).catch(() => undefined)
+  }, [alert?.id, hasIncident])
+
   const riskAfter = contained ? 32 : riskScore
   const focus = focusedNode ?? alert?.target ?? 'svc-sql'
   const responseList = contained
@@ -330,7 +334,14 @@ export default function App() {
                   <section className="cmd__pipeline glass-pane">
                     <div className="cmd__pipeline-inner">
                       {PIPELINE.map((step, i) => {
-                        const live = typeof step.ok === 'function' ? step.ok(connected) : step.ok
+                        const live =
+                          i === 1
+                            ? wazuhLive || hasIncident
+                            : i === 3
+                              ? connected
+                              : i === 4
+                                ? hasIncident
+                                : true
                         return (
                           <div key={step.label} className="cmd__pipe-step">
                             <div className={`cmd__pipe-node ${live ? 'is-live' : ''} ${hasIncident && i === PIPELINE.length - 1 && !contained ? 'is-pulse' : ''}`}>

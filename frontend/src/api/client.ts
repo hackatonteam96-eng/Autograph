@@ -41,6 +41,7 @@ export type Health = {
   ok: boolean
   service: string
   detection: string
+  data?: { wazuh_real?: boolean; sample_alerts?: boolean; attack_path?: boolean }
   incidents: { open: number; contained: number }
 }
 
