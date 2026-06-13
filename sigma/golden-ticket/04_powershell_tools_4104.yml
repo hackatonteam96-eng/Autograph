@@ -1,0 +1,50 @@
+title: Golden Ticket Tooling - PowerShell Script Block (Event 4104)
+id: authgraph-gt-04-powershell-tools
+status: experimental
+description: |
+  Detects PowerShell Script Block Logging (4104) for Golden Ticket and
+  Pass-the-Ticket tooling: Mimikatz kerberos::golden, Rubeus golden, etc.
+  Enable "PowerShell Script Block Logging" via GPO on clients and servers.
+author: Gular — AuthGraph ITDR Detection Team
+date: 2026/06/13
+references:
+  - https://attack.mitre.org/techniques/T1558/001/
+  - https://attack.mitre.org/techniques/T1059/001/
+tags:
+  - attack.credential_access
+  - attack.t1558.001
+  - attack.execution
+  - attack.t1059.001
+logsource:
+  product: windows
+  service: powershell
+  definition: |
+    Enable via GPO: PowerShell Script Block Logging
+detection:
+  selection_golden:
+    EventID: 4104
+    ScriptBlockText|contains:
+      - 'kerberos::golden'
+      - 'Kerberos::golden'
+      - 'golden ticket'
+      - 'GoldenTicket'
+      - 'Invoke-Mimikatz'
+      - 'DumpCreds'
+      - 'Rubeus'
+      - 'asktgt'
+      - 'ptt'
+      - 'PassTheTicket'
+      - 'Invoke-KerberosAttack'
+  filter_fp:
+    ScriptBlockText|contains:
+      - 'Get-Help'
+      - '# detection test'
+  condition: selection_golden and not filter_fp
+falsepositives:
+  - Security training and approved red team exercises
+  - Detection validation scripts in lab environments
+level: high
+fields:
+  - ScriptBlockText
+  - Path
+  - UserId

@@ -1,0 +1,64 @@
+title: Golden Ticket - Suspicious RC4 Infrastructure TGS Request (Primary)
+id: authgraph-golden-ticket-4769
+status: experimental
+description: |
+  Primary Golden Ticket rule — delegates to full suite in sigma/golden-ticket/.
+  Detects Event 4769 RC4 service tickets for infrastructure SPNs (CIFS, LDAP,
+  HOST, HTTP, MSSQL). Forged golden tickets are often used for lateral movement
+  and produce TGS requests that differ from normal user/application patterns.
+author: Gular — AuthGraph ITDR Detection Team
+date: 2026/06/13
+references:
+  - https://attack.mitre.org/techniques/T1558/001/
+  - ./golden-ticket/README.md
+tags:
+  - attack.credential_access
+  - attack.persistence
+  - attack.t1558.001
+logsource:
+  product: windows
+  service: security
+  definition: |
+    Requirements on ALL Domain Controllers:
+    - Advanced Audit Policy: Audit Kerberos Service Ticket Operations → Success
+    - Wazuh agent collecting Security channel (eventchannel)
+detection:
+  selection:
+    EventID: 4769
+    Status: '0x0'
+  filter_rc4:
+    TicketEncryptionType:
+      - '0x17'
+      - '0x1'
+      - '0x23'
+      - '0x3'
+      - '23'
+      - '1'
+      - '3'
+  filter_infrastructure_spn:
+    ServiceName|contains:
+      - 'cifs/'
+      - 'ldap/'
+      - 'host/'
+      - 'HTTP/'
+      - 'http/'
+      - 'MSSQLSvc/'
+  filter_krbtgt:
+    ServiceName|contains: 'krbtgt'
+  filter_machine_spn:
+    ServiceName|endswith: '$'
+  filter_machine_user:
+    TargetUserName|contains: '$@'
+  condition: selection and filter_rc4 and filter_infrastructure_spn and not 1 of filter_krbtgt, filter_machine_spn, filter_machine_user
+falsepositives:
+  - Legacy systems using RC4 for CIFS/LDAP Kerberos
+  - IT admin scripts accessing multiple servers via Kerberos
+level: high
+fields:
+  - TargetUserName
+  - ServiceName
+  - TicketEncryptionType
+  - TicketOptions
+  - IpAddress
+  - WorkstationName
+  - Status

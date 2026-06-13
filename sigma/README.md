@@ -53,13 +53,32 @@ MITRE: **T1558.004** — TGT issued without Kerberos pre-authentication (PreAuth
 
 **DC audit policy:** Audit Kerberos Authentication Service → Success
 
+## Golden Ticket
+
+**6 rule** → [`golden-ticket/`](./golden-ticket/README.md)
+
+| # | Rule | Event |
+|---|------|-------|
+| 01 | RC4 TGS to infrastructure SPN | 4769 |
+| 02 | 10+ distinct SPNs / 10 min | 4769 correlation |
+| 03 | Kerberos ticket validation failure | 4768/4769/4771 |
+| 04 | PowerShell tools | 4104 |
+| 05 | Process / CLI tools | 4688 |
+| 06 | Honeypot privileged account TGS | 4769 |
+
+Primary entry: [`golden-ticket.yml`](./golden-ticket.yml)
+
+MITRE: **T1558.001** — forged Kerberos TGT (krbtgt hash) used for domain-wide access.
+
+**DC audit policy:** Audit Kerberos Service Ticket Operations → Success + Failure
+
 ## Wazuh import
 
 1. Hər YAML-ı Wazuh Sigma converter və ya manual XML rule-a çevir
-2. **Correlation rule-lar** (kerberoasting 02, 03, 04, 11, 13; password-spraying.yml; asreproasting 02) üçün Wazuh `frequency` + `same_field` / `different_field` istifadə et
+2. **Correlation rule-lar** (kerberoasting 02, 03, 04, 11, 13; password-spraying.yml; asreproasting 02; golden-ticket 02) üçün Wazuh `frequency` + `same_field` / `different_field` istifadə et
 3. DC agent + Kerberos / Logon audit policy aktiv olmalıdır
 
-Ətraflı: [`kerberoasting/README.md`](./kerberoasting/README.md) · [`asreproasting/README.md`](./asreproasting/README.md)
+Ətraflı: [`kerberoasting/README.md`](./kerberoasting/README.md) · [`asreproasting/README.md`](./asreproasting/README.md) · [`golden-ticket/README.md`](./golden-ticket/README.md)
 
 ## Export shape
 

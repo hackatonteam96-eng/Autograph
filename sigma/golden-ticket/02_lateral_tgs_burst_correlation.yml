@@ -1,0 +1,46 @@
+title: Golden Ticket - Multiple Infrastructure TGS Requests From Same Source (10 min)
+id: authgraph-gt-02-lateral-tgs-burst
+status: experimental
+description: |
+  HIGH FIDELITY Golden Ticket / Pass-the-Ticket indicator. After importing a
+  forged TGT, attackers request many service tickets (4769) across the domain
+  for lateral movement — CIFS, LDAP, HOST, HTTP, WMI, etc.
+  Alerts when the same user+source IP requests 10+ distinct ServiceNames in 10 minutes.
+author: Gular — AuthGraph ITDR Detection Team
+date: 2026/06/13
+references:
+  - https://attack.mitre.org/techniques/T1558/001/
+  - https://www.windows-active-directory.com/how-to-detect-golden-ticket-attacks.html
+tags:
+  - attack.credential_access
+  - attack.persistence
+  - attack.lateral_movement
+  - attack.t1558.001
+logsource:
+  product: windows
+  service: security
+detection:
+  selection:
+    EventID: 4769
+    Status: '0x0'
+  filter_krbtgt:
+    ServiceName|contains: 'krbtgt'
+  filter_machine_user:
+    TargetUserName|contains: '$@'
+  filter_null_ip:
+    IpAddress:
+      - '-'
+      - ''
+  condition: selection and not 1 of filter_krbtgt, filter_machine_user, filter_null_ip | count_distinct(ServiceName) by TargetUserName, IpAddress > 10
+  timeframe: 10m
+falsepositives:
+  - Vulnerability scanners with authenticated Kerberos enumeration
+  - Backup software traversing many server SPNs
+  - IT inventory / monitoring tools
+level: critical
+fields:
+  - TargetUserName
+  - ServiceName
+  - IpAddress
+  - WorkstationName
+  - TicketEncryptionType

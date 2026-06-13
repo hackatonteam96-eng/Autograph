@@ -1,0 +1,62 @@
+title: Golden Ticket - RC4 TGS Request to Infrastructure Service
+id: authgraph-gt-01-rc4-infrastructure-tgs
+status: experimental
+description: |
+  Detects successful Kerberos TGS requests (4769) using RC4 encryption against
+  infrastructure SPNs (CIFS, LDAP, HOST, HTTP, MSSQL). Attackers with a forged
+  golden TGT request service tickets for lateral movement and DC access.
+  Layer 1 of AuthGraph ITDR Golden Ticket coverage.
+author: Gular — AuthGraph ITDR Detection Team
+date: 2026/06/13
+references:
+  - https://attack.mitre.org/techniques/T1558/001/
+  - https://adsecurity.org/?p=1515
+tags:
+  - attack.credential_access
+  - attack.persistence
+  - attack.t1558.001
+logsource:
+  product: windows
+  service: security
+  definition: |
+    Requirements on ALL Domain Controllers:
+    - Advanced Audit Policy: Audit Kerberos Service Ticket Operations → Success
+detection:
+  selection:
+    EventID: 4769
+    Status: '0x0'
+  filter_rc4:
+    TicketEncryptionType:
+      - '0x17'
+      - '0x1'
+      - '0x23'
+      - '0x3'
+      - '23'
+      - '1'
+      - '3'
+  filter_infrastructure_spn:
+    ServiceName|contains:
+      - 'cifs/'
+      - 'ldap/'
+      - 'host/'
+      - 'HTTP/'
+      - 'http/'
+      - 'MSSQLSvc/'
+  filter_krbtgt:
+    ServiceName|contains: 'krbtgt'
+  filter_machine_spn:
+    ServiceName|endswith: '$'
+  filter_machine_user:
+    TargetUserName|contains: '$@'
+  condition: selection and filter_rc4 and filter_infrastructure_spn and not 1 of filter_krbtgt, filter_machine_spn, filter_machine_user
+falsepositives:
+  - Legacy RC4-only Kerberos to file shares and LDAP
+  - Scheduled admin tasks touching multiple servers
+level: medium
+fields:
+  - TargetUserName
+  - ServiceName
+  - TicketEncryptionType
+  - TicketOptions
+  - IpAddress
+  - WorkstationName

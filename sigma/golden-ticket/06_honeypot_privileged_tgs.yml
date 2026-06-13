@@ -1,0 +1,40 @@
+title: Golden Ticket - Honeypot Privileged Account TGS Request
+id: authgraph-gt-06-honeypot-privileged-tgs
+status: experimental
+description: |
+  Detects ANY successful TGS request (4769) for a decoy privileged user account
+  you create and never use legitimately. Golden ticket attacks often impersonate
+  Domain Admins or other high-value accounts — a honeypot DA account guarantees
+  high-fidelity alerts on any Kerberos activity.
+  CUSTOMIZE honeypot_username values before deploying.
+author: Gular — AuthGraph ITDR Detection Team
+date: 2026/06/13
+references:
+  - https://attack.mitre.org/techniques/T1558/001/
+  - https://www.sentinelone.com/cybersecurity-101/cybersecurity/golden-ticket-attack/
+tags:
+  - attack.credential_access
+  - attack.t1558.001
+  - attack.defense_evasion
+logsource:
+  product: windows
+  service: security
+detection:
+  selection:
+    EventID: 4769
+    Status: '0x0'
+  filter_honeypot:
+    TargetUserName|contains:
+      - 'HONEYPOT-DA'
+      - 'decoy-admin'
+      - 'svc-honeypot-da'
+  condition: selection and filter_honeypot
+falsepositives:
+  - None expected if honeypot account is disabled and never used legitimately
+level: critical
+fields:
+  - TargetUserName
+  - ServiceName
+  - IpAddress
+  - WorkstationName
+  - TicketEncryptionType

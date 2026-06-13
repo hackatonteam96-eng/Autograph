@@ -1,0 +1,62 @@
+title: Golden Ticket Tooling - Process Creation (Event 4688)
+id: authgraph-gt-05-process-tools
+status: experimental
+description: |
+  Detects execution of known Golden Ticket / Pass-the-Ticket tools via
+  Windows Security Event 4688. Catches Mimikatz, Rubeus golden/ptt, Impacket
+  ticketer.py, and related command lines.
+  Enable "Audit Process Creation" + include command line (GPO).
+author: Gular — AuthGraph ITDR Detection Team
+date: 2026/06/13
+references:
+  - https://attack.mitre.org/techniques/T1558/001/
+  - https://attack.mitre.org/techniques/T1059/
+tags:
+  - attack.credential_access
+  - attack.t1558.001
+  - attack.execution
+logsource:
+  product: windows
+  service: security
+  definition: |
+    GPO: Audit Process Creation → Success + command line in 4688
+detection:
+  selection_mimikatz:
+    EventID: 4688
+    CommandLine|contains:
+      - 'kerberos::golden'
+      - 'Kerberos::golden'
+      - 'mimikatz'
+      - 'Mimikatz'
+  selection_rubeus:
+    EventID: 4688
+    CommandLine|contains:
+      - 'Rubeus.exe golden'
+      - 'Rubeus golden'
+      - 'Rubeus.exe asktgt'
+      - 'Rubeus.exe ptt'
+      - 'Rubeus ptt'
+  selection_impacket:
+    EventID: 4688
+    CommandLine|contains:
+      - 'ticketer.py'
+      - 'goldenTicket'
+  selection_other:
+    EventID: 4688
+    CommandLine|contains:
+      - 'Invoke-Mimikatz'
+      - 'GoldenTicket'
+      - 'PassTheTicket'
+  filter_legit:
+    ParentProcessName|contains:
+      - 'nessus'
+      - 'qualys'
+  condition: 1 of selection_* and not filter_legit
+falsepositives:
+  - Approved penetration tests with scoped tooling
+level: high
+fields:
+  - SubjectUserName
+  - NewProcessName
+  - CommandLine
+  - ParentProcessName
