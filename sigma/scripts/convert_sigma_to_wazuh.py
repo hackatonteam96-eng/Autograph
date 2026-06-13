@@ -558,8 +558,8 @@ def main() -> int:
     print(f"Output: {args.output}")
     print()
     print("Deploy on Wazuh manager:")
-    print(f"  sudo cp {args.output.name} /var/ossec/etc/rules/authgraph_rules.xml")
-    print("  # ensure ossec.conf contains: <rule_include>rules/authgraph_rules.xml</rule_include>")
+    print(f"  sudo cp {args.output} /var/ossec/etc/rules/authgraph_rules.xml")
+    print("  # loads automatically via <rule_dir>etc/rules</rule_dir> in ossec.conf")
     print("  sudo /var/ossec/bin/wazuh-analysisd -t")
     print("  sudo systemctl restart wazuh-manager")
 

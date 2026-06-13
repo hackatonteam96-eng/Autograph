@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # AuthGraph — Auto-deploy Sigma rules to Wazuh authgraph_rules.xml
 #
-# Does NOT overwrite local_rules.xml — uses separate authgraph_rules.xml + rule_include.
+# Does NOT overwrite local_rules.xml — authgraph_rules.xml lives in etc/rules/
+# and is loaded automatically by default <rule_dir>etc/rules</rule_dir>.
 
 set -euo pipefail
 
@@ -11,7 +12,6 @@ OUTPUT_XML="${WAZUH_RULES_OUTPUT:-/var/ossec/etc/rules/authgraph_rules.xml}"
 OSSEC_CONF="${WAZUH_OSSEC_CONF:-/var/ossec/etc/ossec.conf}"
 LOG_TAG="authgraph-wazuh-deploy"
 VENV_DIR="${AUTHGRAPH_VENV:-/opt/authgraph-venv}"
-RULE_INCLUDE="rules/authgraph_rules.xml"
 
 log() { echo "[$(date -Iseconds)] [$LOG_TAG] $*"; }
 die() { log "ERROR: $*"; exit 1; }
@@ -50,17 +50,17 @@ setup_python() {
   apt-get install -y -qq python3-yaml || die "Run: sudo apt install python3-yaml"
 }
 
-ensure_rule_include() {
+fix_ossec_ruleset() {
+  # Wrong path from earlier deploys: Wazuh resolves from /var/ossec/, not etc/
+  if grep -q '<rule_include>rules/authgraph_rules.xml</rule_include>' "$OSSEC_CONF" 2>/dev/null; then
+    log "Fixing ossec.conf: removing wrong rule_include rules/authgraph_rules.xml"
+    sed -i '/<rule_include>rules\/authgraph_rules.xml<\/rule_include>/d' "$OSSEC_CONF"
+  fi
   if grep -q "authgraph_rules.xml" "$OSSEC_CONF" 2>/dev/null; then
-    log "rule_include for authgraph_rules.xml already in ossec.conf"
+    log "ossec.conf references authgraph_rules.xml"
     return
   fi
-  log "Adding rule_include to $OSSEC_CONF"
-  if grep -q "<ruleset>" "$OSSEC_CONF"; then
-    sed -i "/<ruleset>/a\\  <rule_include>${RULE_INCLUDE}</rule_include>" "$OSSEC_CONF"
-  else
-    die "Cannot find <ruleset> in $OSSEC_CONF — add manually: <rule_include>${RULE_INCLUDE}</rule_include>"
-  fi
+  log "authgraph_rules.xml loads via default <rule_dir>etc/rules</rule_dir> — no rule_include needed"
 }
 
 test_wazuh_config() {
@@ -112,7 +112,7 @@ head -3 "$OUTPUT_XML" | while read -r line; do log "  $line"; done
 "$PYTHON" -c "import xml.etree.ElementTree as ET; ET.parse('$OUTPUT_XML')" \
   || die "Generated XML is invalid"
 
-ensure_rule_include
+fix_ossec_ruleset
 
 # Test BEFORE restart — restore backup on failure
 if ! test_wazuh_config; then
