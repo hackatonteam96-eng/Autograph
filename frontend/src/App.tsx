@@ -24,7 +24,7 @@ import FloatingCopilot from './components/FloatingCopilot'
 import RiskPanel from './components/RiskPanel'
 import TelemetryGlobe from './components/TelemetryGlobe'
 import { api, type Alert, type AttackPath } from './api/client'
-import { fallbackAttackPath, fallbackSigmaYaml } from './data/fallbacks'
+import { fallbackAttackPath, fallbackDemoAlert, fallbackSigmaYaml, shouldUseOfflineDemo } from './data/fallbacks'
 
 type View = 'command' | 'path' | 'detection' | 'response' | 'telemetry'
 
@@ -112,6 +112,14 @@ export default function App() {
       setConnected(false)
       setAttackPath((current) => current ?? fallbackAttackPath)
       setSigmaYaml((current) => current || fallbackSigmaYaml)
+      if (shouldUseOfflineDemo()) {
+        setAlert(fallbackDemoAlert)
+        setDemoStep(3)
+        setRiskScore(fallbackDemoAlert.risk)
+        setTimelineCount(5)
+        setFocusedNode(fallbackDemoAlert.target)
+        setAiActions(fallbackDemoAlert.response)
+      }
     }
     finally { setLoading(false) }
   }, [])

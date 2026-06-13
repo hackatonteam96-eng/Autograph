@@ -1,4 +1,4 @@
-import type { AttackPath } from '../api/client'
+import type { Alert, AttackPath } from '../api/client'
 
 export const fallbackAttackPath: AttackPath = {
   nodes: [
@@ -37,3 +37,40 @@ detection:
   condition: selection and filter_rc4
 level: high
 `
+
+export const fallbackDemoAlert: Alert = {
+  id: 'alert-001',
+  time: '2026-06-12T14:03:00Z',
+  source: 'Wazuh',
+  attack: 'Kerberoasting',
+  mitre: 'T1558.003',
+  severity: 'critical',
+  risk: 87,
+  user: 'lowpriv.user',
+  target: 'svc-sql',
+  source_ip: '10.0.0.42',
+  host: 'DC01',
+  event_id: 4769,
+  evidence: [
+    'Multiple Kerberos TGS requests from one user',
+    'RC4 encrypted service ticket requested',
+    'Target account has SPN configured',
+    'Service account is linked to privileged SQL server',
+  ],
+  response: [
+    'Reset service account password',
+    'Disable RC4 Kerberos encryption',
+    'Review SPN ownership',
+    'Investigate source user session',
+    'Rotate credentials for exposed service account',
+  ],
+  status: 'open',
+}
+
+/** Show full SOC demo on Vercel when backend is unreachable. */
+export function shouldUseOfflineDemo() {
+  if (import.meta.env.VITE_DEMO_MODE === 'true') return true
+  if (!import.meta.env.PROD) return false
+  const base = import.meta.env.VITE_API_BASE
+  return !base || base === '/api'
+}
