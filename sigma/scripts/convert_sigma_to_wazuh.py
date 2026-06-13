@@ -16,7 +16,6 @@ Deploy on Wazuh manager:
 from __future__ import annotations
 
 import argparse
-import hashlib
 import re
 import sys
 import xml.etree.ElementTree as ET
@@ -114,7 +113,7 @@ def values_to_regex(values: Any, modifier: str | None) -> str:
         v = items[0] if items else ""
         return "^" + escape_regex(v)
 
-    # exact match
+    # exact match — expand hex to upper+lower (Wazuh OSRegex may not support (?i:))
     parts = []
     for v in items:
         if v == "":
@@ -123,23 +122,64 @@ def values_to_regex(values: Any, modifier: str | None) -> str:
             parts.append(f"^{v}$")
         else:
             s = str(v)
-            # hex case-insensitive for status/substatus
             if re.match(r"^0x[0-9a-fA-F]+$", s):
-                parts.append(f"^(?i:{escape_regex(s)})$")
+                low = s.lower()
+                high = s.upper()
+                parts.append(f"^{escape_regex(low)}$")
+                if high != low:
+                    parts.append(f"^{escape_regex(high)}$")
             else:
                 parts.append(f"^{escape_regex(s)}$")
     return "|".join(parts)
 
 
-def stable_rule_id(sigma_id: str, suffix: int = 0) -> int:
-    h = int(hashlib.sha256(sigma_id.encode()).hexdigest()[:6], 16)
-    return 100000 + (h % 800000) + suffix
+class RuleIdGen:
+    """Sequential unique Wazuh rule IDs (avoid hash collisions)."""
+
+    def __init__(self, start: int = 100100) -> None:
+        self._next = start
+        self.used: set[int] = set()
+
+    def allocate(self) -> int:
+        while self._next in self.used:
+            self._next += 1
+        rid = self._next
+        self.used.add(rid)
+        self._next += 1
+        return rid
+
+
+def merge_field_criteria(
+    criteria: list[tuple[str, str, bool]],
+) -> list[tuple[str, str, bool]]:
+    """Merge multiple regexes on the same field+negate into one OR pattern."""
+    buckets: dict[tuple[str, bool], list[str]] = {}
+    for wfield, regex, negate in criteria:
+        if not regex:
+            continue
+        key = (wfield, negate)
+        buckets.setdefault(key, []).append(regex)
+
+    out: list[tuple[str, str, bool]] = []
+    for (wfield, negate), patterns in buckets.items():
+        # Strip anchors and rejoin as alternation
+        inner = "|".join(p.strip("^").strip("$") for p in patterns)
+        out.append((wfield, f"^{inner}$", negate))
+    return out
 
 
 def extract_mitre_tags(tags: list[str] | None) -> list[str]:
     if not tags:
         return []
-    return [t.replace("attack.", "").upper() for t in tags if t.startswith("attack.t")]
+    out = []
+    for t in tags:
+        if not t.startswith("attack."):
+            continue
+        # Wazuh expects e.g. T1558.003 not T1558_003
+        tid = t.replace("attack.", "").upper().replace("_", ".")
+        if tid.startswith("T") and tid not in out:
+            out.append(tid)
+    return out
 
 
 def parse_condition(condition: str, detection: dict) -> dict:
@@ -294,7 +334,7 @@ def build_rule_element(
     return rule
 
 
-def convert_sigma_rule(rule: dict, source_file: str) -> list[ET.Element]:
+def convert_sigma_rule(rule: dict, source_file: str, id_gen: RuleIdGen) -> list[ET.Element]:
     detection = rule.get("detection") or {}
     condition = detection.get("condition", "selection")
     if not condition:
@@ -308,10 +348,10 @@ def convert_sigma_rule(rule: dict, source_file: str) -> list[ET.Element]:
     mitre = extract_mitre_tags(rule.get("tags"))
 
     elements: list[ET.Element] = []
-    base_id = stable_rule_id(sigma_id, 0)
-    alert_id = base_id + 1
+    base_id = id_gen.allocate()
+    alert_id = id_gen.allocate()
 
-    # OR selections → multiple child rules feeding one parent, or merged regex
+    # OR selections → merge into one rule (avoid orphan branch IDs)
     is_or_selection = any(
         b.startswith("selection_") for b in parsed["include"]
     ) and len(parsed["include"]) > 1
@@ -321,46 +361,39 @@ def convert_sigma_rule(rule: dict, source_file: str) -> list[ET.Element]:
 
     if is_or_selection:
         branches = group_or_selections(detection, parsed["include"])
-        branch_ids = []
-        for i, branch in enumerate(branches):
-            bid = base_id + i
-            branch_ids.append(bid)
-            crit = dedupe_criteria(branch + [(f, r, True) for f, r, _ in exclude_criteria])
-            elements.append(
-                build_rule_element(
-                    bid,
-                    3,
-                    f"AuthGraph [child]: {title} ({Path(source_file).name})",
-                    crit,
-                    mitre=None,
-                )
-            )
-        # Parent OR via if_sid on first branch only — Wazuh can't OR if_sid easily.
-        # Merge all branch CommandLine/Event patterns into one rule instead.
         merged_or: dict[str, list[str]] = {}
         for branch in branches:
             for wfield, regex, _ in branch:
                 merged_or.setdefault(wfield, []).append(regex)
         include_criteria = [(f, "|".join(rs), False) for f, rs in merged_or.items()]
-        base_id = alert_id
-        alert_id = base_id + 1
+        base_id = id_gen.allocate()
+        alert_id = id_gen.allocate()
 
     all_include = dedupe_criteria(include_criteria)
-    all_criteria = all_include + [(f, r, True) for f, r, _ in exclude_criteria]
+    all_criteria = merge_field_criteria(
+        all_include + [(f, r, True) for f, r, _ in exclude_criteria]
+    )
+
+    if not all_criteria and not parsed.get("correlation"):
+        return []
 
     correlation = parsed["correlation"]
 
     if parsed.get("one_of_filters"):
         filter_blocks = [k for k in detection if k.startswith("filter_")]
-        for i, fb in enumerate(filter_blocks):
-            crit = dedupe_criteria(
-                merge_detection_blocks(detection, parsed["include"])
-                + merge_detection_blocks(detection, [fb])
-                + [(f, r, True) for f, r, _ in exclude_criteria]
+        for fb in filter_blocks:
+            crit = merge_field_criteria(
+                dedupe_criteria(
+                    merge_detection_blocks(detection, parsed["include"])
+                    + merge_detection_blocks(detection, [fb])
+                    + [(f, r, True) for f, r, _ in exclude_criteria]
+                )
             )
+            if not crit:
+                continue
             elements.append(
                 build_rule_element(
-                    base_id + i,
+                    id_gen.allocate(),
                     level,
                     f"AuthGraph: {title} ({fb})",
                     crit,
@@ -370,8 +403,10 @@ def convert_sigma_rule(rule: dict, source_file: str) -> list[ET.Element]:
         return elements
 
     if correlation:
+        child_id = id_gen.allocate()
+        parent_id = id_gen.allocate()
         child = build_rule_element(
-            base_id,
+            child_id,
             3,
             f"AuthGraph [child]: {title} ({Path(source_file).name})",
             all_criteria,
@@ -390,11 +425,11 @@ def convert_sigma_rule(rule: dict, source_file: str) -> list[ET.Element]:
             different_fields.append(wf)
 
         parent = build_rule_element(
-            alert_id,
+            parent_id,
             level,
             f"AuthGraph: {title}",
             [],
-            if_matched_sid=base_id,
+            if_matched_sid=child_id,
             frequency=correlation["threshold"],
             timeframe=timeframe,
             same_fields=same_fields,
@@ -406,7 +441,7 @@ def convert_sigma_rule(rule: dict, source_file: str) -> list[ET.Element]:
     else:
         elements.append(
             build_rule_element(
-                alert_id,
+                id_gen.allocate(),
                 level,
                 f"AuthGraph: {title}",
                 all_criteria,
@@ -449,8 +484,8 @@ def main() -> int:
     parser.add_argument(
         "--output",
         type=Path,
-        default=Path(__file__).resolve().parent.parent / "wazuh" / "local_rules.xml",
-        help="Output XML path",
+        default=Path(__file__).resolve().parent.parent / "wazuh" / "authgraph_rules.xml",
+        help="Output XML path (default: authgraph_rules.xml)",
     )
     args = parser.parse_args()
 
@@ -465,6 +500,7 @@ def main() -> int:
         return 1
 
     group = ET.Element("group", name="authgraph,identity_attacks,")
+    id_gen = RuleIdGen(100100)
     converted = 0
     skipped = 0
     errors: list[str] = []
@@ -479,11 +515,15 @@ def main() -> int:
             if not rule.get("detection"):
                 skipped += 1
                 continue
-            for el in convert_sigma_rule(rule, str(ypath.relative_to(sigma_dir))):
+            for el in convert_sigma_rule(rule, str(ypath.relative_to(sigma_dir)), id_gen):
                 group.append(el)
                 converted += 1
         except Exception as exc:
             errors.append(f"{ypath.name}: {exc}")
+
+    if converted == 0:
+        print("ERROR: no rules generated", file=sys.stderr)
+        return 1
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(prettify_xml(group), encoding="utf-8")
@@ -491,10 +531,13 @@ def main() -> int:
     print(f"Sigma dir:  {sigma_dir}")
     print(f"YAML files: {len(yaml_files)} (skipped entries: {', '.join(sorted(SKIP_FILES))})")
     print(f"Wazuh rules generated: {converted}")
+    print(f"Rule ID range: 100100–{id_gen._next - 1}")
     print(f"Output: {args.output}")
     print()
     print("Deploy on Wazuh manager:")
-    print(f"  sudo cp {args.output.name} /var/ossec/etc/rules/local_rules.xml")
+    print(f"  sudo cp {args.output.name} /var/ossec/etc/rules/authgraph_rules.xml")
+    print("  # ensure ossec.conf contains: <rule_include>rules/authgraph_rules.xml</rule_include>")
+    print("  sudo /var/ossec/bin/wazuh-analysisd -t")
     print("  sudo systemctl restart wazuh-manager")
 
     if errors:
