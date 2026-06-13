@@ -1,0 +1,60 @@
+{
+  "incidents": {
+    "alert-001": {
+      "status": "contained",
+      "contained_at": "2026-06-13T03:36:52.104Z",
+      "risk_before": 87,
+      "risk_after": 32,
+      "approved_actions": [
+        "Reset service account password",
+        "Disable RC4 Kerberos encryption",
+        "Review SPN ownership",
+        "Investigate source user session",
+        "Rotate credentials for exposed service account"
+      ],
+      "execution": [
+        {
+          "action": "Reset service account password",
+          "playbook_id": "rotate_service_password",
+          "description": "Force password rotation on targeted service account",
+          "command": "Set-ADAccountPassword -Identity 'svc-sql' -Reset -PassThru | Set-ADUser -ChangePasswordAtLogon $true",
+          "status": "simulated",
+          "message": "Dry-run — set LAB_AD_ENABLED=true in backend/.env for live AD execution"
+        },
+        {
+          "action": "Disable RC4 Kerberos encryption",
+          "playbook_id": "rc4_hardening",
+          "description": "Recommend/disable RC4 Kerberos encryption domain-wide",
+          "command": "Set-ADDomain -Replace @{'msDS-SupportedEncryptionTypes'='24'} # AES only — lab GPO equivalent",
+          "status": "simulated",
+          "message": "Dry-run — set LAB_AD_ENABLED=true in backend/.env for live AD execution"
+        },
+        {
+          "action": "Review SPN ownership",
+          "playbook_id": "review_spn",
+          "description": "Review and remove exposed SPN from service account",
+          "command": "Set-ADUser -Identity 'svc-sql' -ServicePrincipalNames @{} # Review before apply",
+          "status": "simulated",
+          "message": "Dry-run — set LAB_AD_ENABLED=true in backend/.env for live AD execution"
+        },
+        {
+          "action": "Investigate source user session",
+          "playbook_id": "revoke_sessions",
+          "description": "Revoke active sessions for source user",
+          "command": "Get-ADUser 'lab.test@autograph.lab' | Revoke-ADUserAllCertificates; # + force logoff via SOAR",
+          "status": "simulated",
+          "message": "Dry-run — set LAB_AD_ENABLED=true in backend/.env for live AD execution"
+        },
+        {
+          "action": "Rotate credentials for exposed service account",
+          "playbook_id": "rotate_service_password",
+          "description": "Force password rotation on targeted service account",
+          "command": "Set-ADAccountPassword -Identity 'svc-sql' -Reset -PassThru | Set-ADUser -ChangePasswordAtLogon $true",
+          "status": "simulated",
+          "message": "Dry-run — set LAB_AD_ENABLED=true in backend/.env for live AD execution"
+        }
+      ]
+    }
+  },
+  "ai": {}
+}

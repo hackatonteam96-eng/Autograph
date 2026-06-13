@@ -1,0 +1,39 @@
+title: Entra ID Risky Sign-In with Privilege Escalation Indicators
+id: authgraph-entra-risky-signin
+status: experimental
+description: |
+  Detects high-risk Entra ID (Microsoft Entra) sign-in events that may indicate
+  identity compromise — risky sign-in level, unfamiliar location, and subsequent
+  directory role or app consent activity. AuthGraph ITDR correlates Entra identity
+  threats alongside on-prem AD Kerberoasting.
+author: AuthGraph ITDR Detection Team
+date: 2026/06/13
+references:
+  - https://attack.mitre.org/techniques/T1078/004/
+  - https://learn.microsoft.com/en-us/entra/id-protection/concept-identity-protection-risks
+tags:
+  - attack.initial_access
+  - attack.t1078.004
+  - attack.credential_access
+logsource:
+  product: azure
+  service: signinlogs
+detection:
+  selection_risk:
+    riskLevelDuringSignIn: high
+  selection_detail:
+    riskDetail|contains:
+      - unfamiliarFeatures
+      - unlikelyTravel
+      - maliciousIPAddress
+  condition: selection_risk or selection_detail
+falsepositives:
+  - Legitimate travel with MFA satisfied
+  - VPN egress IP changes
+level: high
+fields:
+  - UserPrincipalName
+  - IPAddress
+  - Location
+  - AppDisplayName
+  - ConditionalAccessStatus

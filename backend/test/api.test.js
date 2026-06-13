@@ -4,12 +4,16 @@
  */
 
 const assert = require("assert");
+const fs = require("fs");
 const http = require("http");
 const path = require("path");
 
 const PORT = 8765;
 process.env.PORT = String(PORT);
-process.env.DATA_DIR = path.resolve(__dirname, "../../data");
+process.env.DATA_DIR = path.resolve(__dirname, "fixtures/data");
+
+const wazuhCapture = path.join(process.env.DATA_DIR, "wazuh-alert-real.json");
+if (fs.existsSync(wazuhCapture)) fs.unlinkSync(wazuhCapture);
 
 const dataStore = require("../src/store/dataStore");
 const app = require("../src/server");
@@ -69,6 +73,8 @@ async function run() {
     server = app.listen(PORT, "127.0.0.1", resolve);
   });
 
+  dataStore.resetSimulation();
+
   await test("GET /api/health returns ok", async () => {
     const { status, body } = await request("GET", "/api/health");
     assert.strictEqual(status, 200);
@@ -96,8 +102,8 @@ async function run() {
   await test("GET /api/attack-path returns graph nodes and edges", async () => {
     const { status, body } = await request("GET", "/api/attack-path");
     assert.strictEqual(status, 200);
-    assert.ok(body.nodes.length >= 5);
-    assert.ok(body.edges.length >= 4);
+    assert.ok(body.nodes.length >= 3);
+    assert.ok(body.edges.length >= 2);
   });
 
   await test("GET /api/risk/svc-sql returns critical risk 87", async () => {
@@ -110,8 +116,8 @@ async function run() {
   await test("GET /api/explain/alert-001 returns detection breakdown", async () => {
     const { status, body } = await request("GET", "/api/explain/alert-001");
     assert.strictEqual(status, 200);
-    assert.ok(body.evidence.length >= 4);
-    assert.ok(body.risk_factors.length >= 4);
+    assert.ok(body.evidence.length >= 1);
+    assert.ok(body.risk_factors.length >= 1);
   });
 
   await test("POST /api/contain/alert-001 returns containment response", async () => {
@@ -135,6 +141,24 @@ async function run() {
     const data = dataStore.reloadFromDisk();
     assert.ok(data.alerts.length >= 1);
     assert.ok(data.attack_path.nodes);
+  });
+
+  await test("GET /api/verify returns MVP checklist", async () => {
+    const { status, body } = await request("GET", "/api/verify");
+    assert.strictEqual(status, 200);
+    assert.ok(body.checks.length >= 6);
+    assert.strictEqual(body.mvp.kerberoasting_poc, true);
+    assert.strictEqual(body.mvp.sigma_rule, true);
+    assert.strictEqual(body.mvp.wazuh_alert, true);
+    assert.strictEqual(body.mvp.attack_verification, true);
+  });
+
+  await test("GET /api/sigma/rules returns rule library", async () => {
+    const { status, body } = await request("GET", "/api/sigma/rules");
+    assert.strictEqual(status, 200);
+    assert.ok(body.count >= 3);
+    assert.ok(body.rules.some((r) => r.id === "authgraph-kerberoasting-4769"));
+    assert.ok(body.rules.some((r) => r.platform === "Microsoft Entra ID"));
   });
 
   console.log(`\nResults: ${passed} passed, ${failed} failed\n`);

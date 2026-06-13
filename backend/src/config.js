@@ -24,8 +24,10 @@ const DATA_DIR = process.env.DATA_DIR
   : path.resolve(__dirname, "../../data");
 const CORS_ORIGIN = process.env.CORS_ORIGIN || "*";
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || "";
+/** Basic chat, greetings, summaries — deepseek/deepseek-v4-flash only */
 const OPENROUTER_CHAT_MODEL = process.env.OPENROUTER_CHAT_MODEL || "deepseek/deepseek-v4-flash";
-const OPENROUTER_REASONING_MODEL = process.env.OPENROUTER_REASONING_MODEL || process.env.OPENROUTER_MODEL || "deepseek/deepseek-v4-pro";
+/** Reasoning, containment, investigation — deepseek/deepseek-v4-pro only */
+const OPENROUTER_REASONING_MODEL = process.env.OPENROUTER_REASONING_MODEL || "deepseek/deepseek-v4-pro";
 const SIGMA_DIR = path.resolve(__dirname, "../../sigma");
 
 module.exports = {

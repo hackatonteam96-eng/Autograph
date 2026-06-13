@@ -16,23 +16,41 @@ import {
   Database,
   Cpu,
   Radioactive,
+  Scroll,
 } from '@phosphor-icons/react'
 import { motion, AnimatePresence, useMotionValue, useSpring } from 'motion/react'
 import AttackGraph from './components/AttackGraph'
 import AttackPathPipeline from './components/AttackPathPipeline'
+import AskAriaButton from './components/AskAriaButton'
+import AriaMessageContent from './components/AriaMessageContent'
 import FloatingCopilot from './components/FloatingCopilot'
 import RiskPanel from './components/RiskPanel'
 import TelemetryGlobe from './components/TelemetryGlobe'
-import { api, type Alert, type AttackPath } from './api/client'
-import { fallbackAttackPath, fallbackDemoAlert, fallbackSigmaYaml, shouldUseOfflineDemo } from './data/fallbacks'
+import { api, type Alert, type AttackPath, type ContainExecution, type EventLogEntry, type ExplainResponse, type Health, type SigmaRuleMeta, type VerifyResponse } from './api/client'
+import { formatLocalTime, formatLocalDateTime, formatRelative } from './utils/time'
+import { fallbackSigmaYaml } from './data/fallbacks'
 
-type View = 'command' | 'path' | 'detection' | 'response' | 'telemetry'
+type View = 'command' | 'path' | 'detection' | 'response' | 'telemetry' | 'logs'
+
+const TOAST_STORAGE_KEY = 'authgraph:last-toast-incident'
+const WEBHOOK_TOAST_KEY = 'authgraph:last-webhook-toast'
+
+function markIncidentSeen(id: string, ref: React.MutableRefObject<string | null>) {
+  ref.current = id
+  try { sessionStorage.setItem(TOAST_STORAGE_KEY, id) } catch { /* private mode */ }
+}
+
+function markWebhookToastSeen(at: string, ref: React.MutableRefObject<string>) {
+  ref.current = at
+  try { sessionStorage.setItem(WEBHOOK_TOAST_KEY, at) } catch { /* private mode */ }
+}
 
 const NAV: { id: View; label: string; icon: typeof SquaresFour }[] = [
   { id: 'command',   label: 'Command',     icon: SquaresFour       },
   { id: 'path',      label: 'Attack path', icon: Graph             },
   { id: 'detection', label: 'Detection',   icon: TerminalWindow    },
   { id: 'response',  label: 'Response',    icon: ShieldCheck       },
+  { id: 'logs',      label: 'Logs',        icon: Scroll            },
   { id: 'telemetry', label: 'Telemetry',   icon: GlobeHemisphereWest },
 ]
 
@@ -44,13 +62,34 @@ const PIPELINE = [
   { label: 'ARIA AI', sub: 'v4-flash / v4-pro' },
 ]
 
-const timeline = [
-  { ts: '14:00:12', text: 'lowpriv.user authenticates to domain' },
-  { ts: '14:01:44', text: 'SPN enumeration — svc-sql discovered' },
-  { ts: '14:03:00', text: 'Burst of RC4 TGS requests hits DC01' },
-  { ts: '14:03:04', text: 'Wazuh raises Kerberoasting alert (level 12)' },
-  { ts: '14:03:09', text: 'AuthGraph correlates identity attack path' },
-]
+function isKerberoastAlert(a: Alert | null | undefined) {
+  if (!a) return false
+  return a.attack === 'Kerberoasting' || a.mitre === 'T1558.003' || a.event_id === 4769
+}
+
+function pickPrimaryIncident(incidents: Alert[]) {
+  const live = incidents.filter((i) => i.ingest_source === 'webhook' && isKerberoastAlert(i))
+  if (live.length) return live[0]
+  return incidents.find(isKerberoastAlert) ?? incidents[0] ?? null
+}
+
+function buildTimeline(alert: Alert | null, wazuhLive: boolean) {
+  if (!alert) return []
+  const base = formatLocalTime(alert.time)
+  const enriched = formatLocalTime(alert.ai_enriched_at ?? alert.last_webhook_at ?? alert.time)
+  return [
+    { ts: base, text: `${alert.user} authenticates to domain` },
+    { ts: base, text: `SPN target identified — ${alert.target}` },
+    { ts: base, text: `RC4 TGS burst on ${alert.host} (Event ${alert.event_id})` },
+    { ts: base, text: `Wazuh raises ${alert.attack} alert${wazuhLive ? ' · LIVE webhook' : ''}` },
+    {
+      ts: enriched,
+      text: alert.ai_verdict
+        ? 'ARIA verdict ready · deepseek-v4-flash + v4-pro'
+        : 'AuthGraph correlates identity attack path',
+    },
+  ]
+}
 
 function AnimatedCounter({ value }: { value: number }) {
   const motionVal = useMotionValue(value)
@@ -70,58 +109,166 @@ function AnimatedCounter({ value }: { value: number }) {
   return <>{display}</>
 }
 
+type KpiFilter = 'all' | 'open' | 'critical' | 'contained'
+
 export default function App() {
   const [view, setView] = useState<View>('command')
   const [connected, setConnected] = useState(false)
   const [wazuhLive, setWazuhLive] = useState(false)
   const [alert, setAlert] = useState<Alert | null>(null)
+  const [incidents, setIncidents] = useState<Alert[]>([])
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [healthData, setHealthData] = useState<Health | null>(null)
+  const [eventLogs, setEventLogs] = useState<EventLogEntry[]>([])
+  const [containExecution, setContainExecution] = useState<ContainExecution[]>([])
+  const [containMode, setContainMode] = useState<'live' | 'simulated' | null>(null)
+  const [copilotPrompt, setCopilotPrompt] = useState<{ text: string; key: number } | null>(null)
+  const [simulating, setSimulating] = useState(false)
   const [attackPath, setAttackPath] = useState<AttackPath | null>(null)
   const [sigmaYaml, setSigmaYaml] = useState('')
+  const [sigmaRules, setSigmaRules] = useState<SigmaRuleMeta[]>([])
+  const [selectedSigmaId, setSelectedSigmaId] = useState('authgraph-kerberoasting-4769')
+  const [explain, setExplain] = useState<ExplainResponse | null>(null)
+  const [verify, setVerify] = useState<VerifyResponse | null>(null)
   const [aiActions, setAiActions] = useState<string[]>([])
+  const [aiVerdict, setAiVerdict] = useState<string | null>(null)
+  const [aiHeadline, setAiHeadline] = useState<string | null>(null)
+  const [aiConfidence, setAiConfidence] = useState<string | null>(null)
+  const [aiUrgency, setAiUrgency] = useState<string | null>(null)
+  const [aiActionDetails, setAiActionDetails] = useState<{ priority: number; action: string; rationale: string; owner: string }[]>([])
+  const [aiStatus, setAiStatus] = useState<string | null>(null)
+  const [approvedActions, setApprovedActions] = useState<Set<string>>(new Set())
+  const [toast, setToast] = useState<string | null>(null)
+  const prevAlertId = useRef<string | null>(null)
+  const initialLoadDone = useRef(false)
   const [contained, setContained] = useState(false)
   const [containActions, setContainActions] = useState<string[]>([])
   const [focusedNode, setFocusedNode] = useState<string | null>(null)
-  const [demoStep, setDemoStep] = useState(0)
+  const [, setDemoStep] = useState(0)
   const [riskScore, setRiskScore] = useState(12)
   const [timelineCount, setTimelineCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [clock, setClock] = useState('')
+  const [kpiFilter, setKpiFilter] = useState<KpiFilter>('all')
+  const lastWebhookToast = useRef<string>('')
+
+  useEffect(() => {
+    try {
+      const seenId = sessionStorage.getItem(TOAST_STORAGE_KEY)
+      if (seenId) prevAlertId.current = seenId
+      const seenWebhook = sessionStorage.getItem(WEBHOOK_TOAST_KEY)
+      if (seenWebhook) lastWebhookToast.current = seenWebhook
+    } catch { /* private mode */ }
+  }, [])
+  const toastsSeen = useRef<Set<string>>(new Set())
+
+  const applyAiFields = useCallback((inc: Alert) => {
+    if (inc.ai_verdict) setAiVerdict(inc.ai_verdict)
+    if (inc.ai_headline) setAiHeadline(inc.ai_headline)
+    if (inc.ai_confidence) setAiConfidence(inc.ai_confidence)
+    if (inc.ai_urgency) setAiUrgency(inc.ai_urgency)
+    if (inc.ai_actions?.length) setAiActions(inc.ai_actions)
+    if (inc.ai_action_details?.length) setAiActionDetails(inc.ai_action_details)
+    if (inc.ai_status) setAiStatus(inc.ai_status)
+  }, [])
+
+  const showNewAlertToast = useCallback((inc: Alert) => {
+    setToast(`New ${inc.attack} alert — ${inc.user} → ${inc.target}`)
+    window.setTimeout(() => setToast(null), 6000)
+  }, [])
+
+  const askAria = useCallback((prompt: string) => {
+    setCopilotPrompt({ text: prompt, key: Date.now() })
+  }, [])
+
+  const applyIncident = useCallback((inc: Alert | null, all: Alert[]) => {
+    setIncidents(all)
+    if (!inc) {
+      setAlert(null)
+      return
+    }
+    setAlert(inc)
+    setSelectedId(inc.id)
+    setContained(inc.status === 'contained')
+    setFocusedNode((f) => f ?? inc.target)
+    applyAiFields(inc)
+    if (inc.simulation_active) {
+      setDemoStep(inc.demo_step ?? 0)
+      setRiskScore(inc.risk)
+      setTimelineCount(Math.min((inc.demo_step ?? 0) + 1, 5))
+    } else if (isKerberoastAlert(inc) && inc.risk >= 70) {
+      setDemoStep(3)
+      setRiskScore(inc.risk)
+      setTimelineCount(5)
+    }
+  }, [applyAiFields])
+
+  const selectIncident = useCallback(async (id: string) => {
+    try {
+      const inc = await api.incident(id)
+      applyIncident(inc, incidents)
+      setContained(inc.status === 'contained')
+      setContainActions([])
+      setApprovedActions(new Set())
+      setContainExecution([])
+      if (inc.ai_actions?.length) setAiActions(inc.ai_actions)
+    } catch {
+      const local = incidents.find((i) => i.id === id)
+      if (local) applyIncident(local, incidents)
+    }
+  }, [applyIncident, incidents])
 
   const refresh = useCallback(async () => {
     try {
-      const [health, incidents, path, sigma] = await Promise.all([
-        api.health(), api.incidents(), api.attackPath(), api.sigma(),
+      const [health, incidentList, path, sigma, rules, logsRes] = await Promise.all([
+        api.health(),
+        api.incidents(),
+        api.attackPath(selectedId ?? undefined),
+        api.sigma(selectedSigmaId),
+        api.sigmaRules(),
+        api.logs({ limit: 200 }),
       ])
+      setEventLogs(logsRes.events)
+      setHealthData(health)
       setConnected(health.ok)
-      setWazuhLive(Boolean(health.data?.wazuh_real))
+      setWazuhLive(Boolean(health.data?.wazuh_kerberos ?? health.data?.wazuh_real))
       setAttackPath(path)
       setSigmaYaml(sigma.yaml)
-      const current = incidents[0] ?? null
-      setAlert(current)
-      if (current) {
-        setContained(current.status === 'contained')
-        setFocusedNode((f) => f ?? current.target)
-        if (current.simulation_active) {
-          setDemoStep(current.demo_step ?? 0)
-          setRiskScore(current.risk)
-          setTimelineCount(Math.min((current.demo_step ?? 0) + 1, 5))
-        }
+      setSigmaRules(rules.rules)
+      const preferred = selectedId
+        ? incidentList.find((i) => i.id === selectedId) ?? pickPrimaryIncident(incidentList)
+        : pickPrimaryIncident(incidentList)
+      applyIncident(preferred ?? null, incidentList)
+      if (preferred) {
+        markIncidentSeen(preferred.id, prevAlertId)
+        if (preferred.last_webhook_at) markWebhookToastSeen(preferred.last_webhook_at, lastWebhookToast)
       }
     } catch {
       setConnected(false)
-      setAttackPath((current) => current ?? fallbackAttackPath)
       setSigmaYaml((current) => current || fallbackSigmaYaml)
-      if (shouldUseOfflineDemo()) {
-        setAlert(fallbackDemoAlert)
-        setDemoStep(3)
-        setRiskScore(fallbackDemoAlert.risk)
-        setTimelineCount(5)
-        setFocusedNode(fallbackDemoAlert.target)
-        setAiActions(fallbackDemoAlert.response)
-      }
     }
-    finally { setLoading(false) }
+    finally {
+      initialLoadDone.current = true
+      setLoading(false)
+    }
+  }, [applyIncident, applyAiFields, selectedSigmaId, selectedId])
+
+  useEffect(() => {
+    if (!connected) return
+    api.sigma(selectedSigmaId).then((s) => setSigmaYaml(s.yaml)).catch(() => undefined)
+  }, [connected, selectedSigmaId])
+
+  useEffect(() => {
+    if (view !== 'detection' || !connected) return
+    api.verify().then(setVerify).catch(() => undefined)
+  }, [view, connected])
+
+  useEffect(() => {
+    const load = () => api.logs({ limit: 200 }).then((r) => setEventLogs(r.events)).catch(() => undefined)
+    load()
+    const id = window.setInterval(load, 3000)
+    return () => window.clearInterval(id)
   }, [])
 
   useEffect(() => {
@@ -129,51 +276,200 @@ export default function App() {
     const poll = window.setInterval(async () => {
       try {
         const [status, incidents, health] = await Promise.all([api.simulateStatus(), api.incidents(), api.health()])
-        setWazuhLive(Boolean(health.data?.wazuh_real))
-        if (status.active) { setDemoStep(status.step); setRiskScore(status.risk); setTimelineCount(status.timeline_count) }
-        const live = incidents[0]
-        if (live && live.risk >= 70 && !live.simulation_active) {
-          setDemoStep(3); setRiskScore(live.risk); setTimelineCount(5); setAlert(live)
+        setWazuhLive(Boolean(health.data?.wazuh_kerberos ?? health.data?.wazuh_real))
+        if (status.active) {
+          setSimulating(true)
+          setDemoStep(status.step)
+          setRiskScore(status.risk)
+          setTimelineCount(status.timeline_count)
+        } else {
+          setSimulating(false)
+        }
+        setHealthData(health)
+        api.logs({ limit: 200 }).then((r) => setEventLogs(r.events)).catch(() => undefined)
+        const live = pickPrimaryIncident(incidents)
+        if (live) {
+          if (
+            initialLoadDone.current
+            && live.ingest_source === 'webhook'
+            && live.last_webhook_at
+            && live.last_webhook_at !== lastWebhookToast.current
+            && isKerberoastAlert(live)
+            && live.risk >= 70
+          ) {
+            lastWebhookToast.current = live.last_webhook_at
+            markWebhookToastSeen(live.last_webhook_at, lastWebhookToast)
+            markIncidentSeen(live.id, prevAlertId)
+            showNewAlertToast(live)
+          }
+          if (!selectedId || live.id === selectedId) {
+            applyIncident(live, incidents)
+            if (live.id) {
+              api.attackPath(live.id).then(setAttackPath).catch(() => undefined)
+            }
+          } else {
+            setIncidents(incidents)
+          }
+        } else {
+          setIncidents(incidents)
+          setAlert(null)
         }
       } catch { /* offline */ }
     }, 2000)
     return () => window.clearInterval(poll)
-  }, [refresh])
+  }, [refresh, showNewAlertToast, applyIncident, selectedId])
 
   useEffect(() => {
-    const tick = () => setClock(new Date().toISOString().slice(11, 19) + ' UTC')
+    const tick = () => {
+      const now = new Date()
+      setClock(now.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' }))
+    }
     tick()
     const id = window.setInterval(tick, 1000)
     return () => window.clearInterval(id)
   }, [])
 
-  const hasIncident = demoStep > 0 || (alert?.risk ?? 0) >= 70 || wazuhLive
+  const hasIncident = Boolean(alert && isKerberoastAlert(alert) && ((alert.risk ?? 0) >= 50 || alert.ingest_source === 'webhook'))
+  const hasLiveWebhook = incidents.some((i) => i.ingest_source === 'webhook')
+
+  useEffect(() => {
+    if (view !== 'response' || !alert?.id || !hasIncident || !connected) return
+    api.aiRespond(alert.id).then((r) => {
+      if (r.actions?.length) setAiActions(r.actions)
+      if (r.action_details?.length) setAiActionDetails(r.action_details)
+      if (r.verdict) setAiVerdict(r.verdict)
+      if (r.headline) setAiHeadline(r.headline)
+      if (r.confidence) setAiConfidence(r.confidence)
+      if (r.urgency) setAiUrgency(r.urgency)
+      if (r.ai_status) setAiStatus(r.ai_status)
+    }).catch(() => undefined)
+  }, [view, alert?.id, hasIncident, connected])
+
+  useEffect(() => {
+    if (!alert?.id || !hasIncident || !connected) return
+    api.explain(alert.id).then(setExplain).catch(() => undefined)
+  }, [alert?.id, hasIncident, connected])
 
   useEffect(() => {
     if (!alert?.id || !hasIncident) return
-    api.aiRespond(alert.id).then((r) => setAiActions(r.actions)).catch(() => undefined)
-  }, [alert?.id, hasIncident])
+    if (alert.ai_actions?.length) {
+      setAiActions(alert.ai_actions)
+      return
+    }
+    api.aiRespond(alert.id).then((r) => {
+      if (r.actions?.length) setAiActions(r.actions)
+      if (r.action_details?.length) setAiActionDetails(r.action_details)
+      if (r.verdict) setAiVerdict(r.verdict)
+      if (r.headline) setAiHeadline(r.headline)
+      if (r.confidence) setAiConfidence(r.confidence)
+      if (r.urgency) setAiUrgency(r.urgency)
+      if (r.ai_status) setAiStatus(r.ai_status)
+    }).catch(() => undefined)
+  }, [alert?.id, alert?.ai_actions, hasIncident])
 
-  const riskAfter = contained ? 32 : riskScore
-  const focus = focusedNode ?? alert?.target ?? 'svc-sql'
+  const incidentTimeline = buildTimeline(alert, wazuhLive)
+  const timeline = incidentTimeline
+
+  const openCount = healthData?.incidents?.open ?? incidents.filter((i) => i.ingest_source === 'webhook' && i.status !== 'contained').length
+  const containedCount = healthData?.incidents?.contained ?? incidents.filter((i) => i.status === 'contained').length
+  const identityCount = attackPath?.nodes.length ?? 0
+  const realIncidents = incidents.filter((i) => i.ingest_source === 'webhook')
+  const criticalCount = realIncidents.filter((i) => i.severity === 'critical' && i.status !== 'contained').length
+
+  const logActivity = eventLogs.filter((e) => {
+    const age = Date.now() - new Date(e.ts).getTime()
+    return age < 60000 && (e.level === 'alert' || e.level === 'webhook')
+  }).length
+
+  const filteredIncidents = realIncidents.filter((inc) => {
+    if (kpiFilter === 'open') return inc.status !== 'contained'
+    if (kpiFilter === 'critical') return inc.severity === 'critical' && inc.status !== 'contained'
+    if (kpiFilter === 'contained') return inc.status === 'contained'
+    return true
+  })
+
+  function onKpiClick(filter: KpiFilter | 'pipeline') {
+    if (filter === 'pipeline') {
+      setView('logs')
+      return
+    }
+    setKpiFilter(filter)
+    setView('detection')
+  }
+
+  const riskAfter = contained ? Math.min(riskScore, alert?.risk ?? 32) : riskScore
+  const focus = focusedNode ?? alert?.target ?? attackPath?.nodes[0]?.id ?? ''
   const responseList = contained
-    ? (containActions.length ? containActions : ['Source user disabled', 'Service account rotation queued', 'RC4 hardening applied', 'SOC ticket ITDR-001'])
+    ? containActions
     : aiActions.length ? aiActions : alert?.response ?? []
 
   async function runSimulation() {
-    if (busy) return
-    setBusy(true); setContained(false); setContainActions([])
-    try { await api.simulateKerberoast(); await refresh(); setDemoStep(1); setTimelineCount(1); setView('command') }
-    finally { setBusy(false) }
+    if (busy || !hasLiveWebhook) return
+    setBusy(true)
+    setSimulating(true)
+    setContained(false)
+    setContainActions([])
+    setContainExecution([])
+    setContainMode(null)
+    setApprovedActions(new Set())
+    setAiVerdict(null)
+    setAiHeadline(null)
+    setAiConfidence(null)
+    setAiUrgency(null)
+    setAiStatus(null)
+    setAiActions([])
+    try {
+      const r = await api.simulateKerberoast()
+      setDemoStep(r.status?.step ?? 1)
+      setRiskScore(r.status?.risk ?? 12)
+      setTimelineCount(r.status?.timeline_count ?? 1)
+      await refresh()
+      setView('command')
+      const inc = r.incident ?? alert
+      if (inc) {
+        markIncidentSeen(inc.id, prevAlertId)
+        toastsSeen.current.add(inc.id)
+      }
+      setToast('Re-analyzing live Wazuh alert with ARIA…')
+      window.setTimeout(() => setToast(null), 4000)
+    } finally {
+      setBusy(false)
+    }
   }
 
   async function containIdentity() {
     if (!alert || busy || contained) return
+    const toExecute = approvedActions.size > 0 ? [...approvedActions] : responseList
+    if (!toExecute.length) return
     setBusy(true)
     try {
-      const r = await api.contain(alert.id)
-      setContained(true); setDemoStep(4); setRiskScore(r.risk_after); setTimelineCount(5); setContainActions(r.actions)
-    } finally { setBusy(false) }
+      const r = await api.contain(alert.id, toExecute)
+      setContained(true)
+      setDemoStep(4)
+      setRiskScore(r.risk_after)
+      setTimelineCount(5)
+      setContainActions(r.actions)
+      setContainExecution(r.execution ?? [])
+      setContainMode(r.mode ?? 'simulated')
+      setToast(r.mode === 'live' ? 'Containment executed on lab AD' : 'Playbook dry-run complete — see Response tab for commands')
+      window.setTimeout(() => setToast(null), 5000)
+      await refresh()
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  function toggleActionApproval(action: string) {
+    setApprovedActions((prev) => {
+      const next = new Set(prev)
+      if (next.has(action)) next.delete(action)
+      else next.add(action)
+      return next
+    })
+  }
+
+  function approveAllActions() {
+    setApprovedActions(new Set(responseList))
   }
 
   async function resetDemo() {
@@ -182,7 +478,11 @@ export default function App() {
     try {
       await api.simulateReset()
       setContained(false); setDemoStep(0); setRiskScore(12); setTimelineCount(0)
-      setAiActions([]); setContainActions([]); setFocusedNode(null)
+      setAiActions([]); setContainActions([]); setContainExecution([]); setContainMode(null); setFocusedNode(null)
+      setAiVerdict(null); setAiHeadline(null); setAiConfidence(null); setAiUrgency(null); setAiStatus(null)
+      setApprovedActions(new Set()); prevAlertId.current = null; initialLoadDone.current = false
+      setSelectedId(null); setSimulating(false); setIncidents([])
+      try { sessionStorage.removeItem(TOAST_STORAGE_KEY); sessionStorage.removeItem(WEBHOOK_TOAST_KEY) } catch { /* ignore */ }
       await refresh()
     } finally { setBusy(false) }
   }
@@ -203,56 +503,94 @@ export default function App() {
       {/* ambient bg */}
       <div className="ag__bg" aria-hidden />
 
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            className="ag__toast"
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -12 }}
+          >
+            <WarningCircle size={18} weight="fill" />
+            <span>{toast}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* topbar */}
       <header className="ag__header">
         <div className="ag__brand">
           <div className="ag__logo"><Fingerprint size={22} weight="duotone" /></div>
           <div>
             <strong>AuthGraph</strong>
-            <span>ITDR · VMware AD Lab</span>
+            <span>ITDR · AD + Entra ID Lab</span>
           </div>
+          {wazuhLive && <span className="ag__live-badge">LIVE WAZUH</span>}
+          {!wazuhLive && connected && simulating && <span className="ag__demo-badge">SIMULATING</span>}
+          {!wazuhLive && connected && hasIncident && !simulating && <span className="ag__demo-badge">DEMO DATA</span>}
         </div>
 
         <div className="ag__kpis">
-          <motion.div
-            className={`kpi ${hasIncident && !contained ? 'kpi--alert' : ''}`}
-            animate={hasIncident && !contained ? { boxShadow: ['0 0 0 0 rgba(255,92,92,0)', '0 0 0 8px rgba(255,92,92,0.12)', '0 0 0 0 rgba(255,92,92,0)'] } : {}}
+          <motion.button
+            type="button"
+            className={`kpi kpi--click ${kpiFilter === 'open' ? 'is-active' : ''} ${openCount > 0 ? 'kpi--alert' : ''}`}
+            onClick={() => onKpiClick('open')}
+            animate={openCount > 0 ? { boxShadow: ['0 0 0 0 rgba(255,92,92,0)', '0 0 0 8px rgba(255,92,92,0.12)', '0 0 0 0 rgba(255,92,92,0)'] } : {}}
             transition={{ repeat: Infinity, duration: 2.4 }}
           >
             <ChartLineUp size={15} />
             <span>Open</span>
-            <b>{hasIncident && !contained ? 1 : 0}</b>
-          </motion.div>
-          <div className={`kpi ${hasIncident && !contained ? 'kpi--critical' : ''}`}>
+            <b>{openCount}</b>
+          </motion.button>
+          <button
+            type="button"
+            className={`kpi kpi--click ${kpiFilter === 'critical' ? 'is-active' : ''} ${criticalCount > 0 ? 'kpi--critical' : ''}`}
+            onClick={() => onKpiClick('critical')}
+          >
             <WarningCircle size={15} />
             <span>Critical</span>
-            <b>{hasIncident && !contained ? 1 : 0}</b>
-          </div>
-          <div className="kpi">
+            <b>{criticalCount}</b>
+          </button>
+          <button
+            type="button"
+            className={`kpi kpi--click ${kpiFilter === 'contained' ? 'is-active' : ''}`}
+            onClick={() => onKpiClick('contained')}
+          >
             <ShieldCheck size={15} />
             <span>Contained</span>
-            <b>{contained ? 1 : 0}</b>
-          </div>
-          <div className={`kpi ${connected ? 'kpi--live' : ''}`}>
+            <b>{containedCount}</b>
+          </button>
+          <button
+            type="button"
+            className={`kpi kpi--click ${connected ? 'kpi--live' : ''}`}
+            onClick={() => onKpiClick('pipeline')}
+            title="View pipeline event log"
+          >
             <span className="kpi__dot" />
             <span>Pipeline</span>
             <b>{connected ? 'Live' : 'Down'}</b>
-          </div>
+          </button>
         </div>
 
         <div className="ag__toolbar">
           <button className="ag__btn ag__btn--ghost" onClick={resetDemo} disabled={busy} aria-label="Reset">
             <ArrowClockwise size={14} />
           </button>
-          <button className="ag__btn" onClick={runSimulation} disabled={busy}>
-            <Play size={13} weight="fill" /> Run attack
+          <button
+            className="ag__btn"
+            onClick={runSimulation}
+            disabled={busy || simulating || !hasLiveWebhook}
+            title={hasLiveWebhook ? 'Re-run ARIA analysis on the latest live Wazuh alert' : 'Waiting for a live Wazuh Kerberoasting webhook from your lab'}
+          >
+            <Play size={13} weight="fill" /> {simulating ? 'Analyzing…' : 'Re-analyze'}
           </button>
           <button
             className={`ag__btn ag__btn--contain ${contained ? 'is-done' : ''}`}
             onClick={containIdentity}
-            disabled={!hasIncident || contained || busy}
+            disabled={!hasIncident || contained || busy || !responseList.length || (!contained && approvedActions.size === 0 && aiActions.length > 0)}
+            title={!contained && approvedActions.size === 0 && aiActions.length > 0 ? 'Approve response actions first' : undefined}
           >
-            <ShieldCheck size={13} /> {contained ? 'Contained' : 'Contain'}
+            <ShieldCheck size={13} /> {contained ? 'Contained' : approvedActions.size ? `Execute (${approvedActions.size})` : 'Contain'}
           </button>
           <time className="ag__clock">{clock}</time>
         </div>
@@ -272,6 +610,9 @@ export default function App() {
               <span>{label}</span>
               {id === 'command' && hasIncident && !contained && (
                 <span className="nav__badge" />
+              )}
+              {id === 'logs' && eventLogs.length > 0 && view !== 'logs' && (
+                <span className="nav__badge nav__badge--muted" />
               )}
             </button>
           ))}
@@ -369,13 +710,41 @@ export default function App() {
                     </div>
                   </section>
 
+                  {hasIncident && (
+                    <section className="glass-pane cmd__verdict">
+                      <div className="pane-head">
+                        <h2><Cpu size={13} weight="fill" /> ARIA verdict</h2>
+                        <span>
+                          {aiStatus === 'pending'
+                            ? 'Analyzing · deepseek-v4-flash + v4-pro…'
+                            : 'deepseek-v4-flash · deepseek-v4-pro'}
+                        </span>
+                      </div>
+                      <div className="cmd__verdict-body">
+                        {aiHeadline && <strong className="cmd__verdict-headline">{aiHeadline}</strong>}
+                        <div className="cmd__verdict-meta">
+                          {aiConfidence && <span className={`cmd__verdict-badge cmd__verdict-badge--${aiConfidence}`}>{aiConfidence} confidence</span>}
+                          {aiUrgency && <span className={`cmd__verdict-badge cmd__verdict-badge--${aiUrgency}`}>{aiUrgency} urgency</span>}
+                          {alert?.mitre && <span className="cmd__verdict-badge">{alert.mitre}</span>}
+                        </div>
+                        {aiStatus === 'pending' && !aiVerdict ? (
+                          <p className="cmd__verdict-pending"><span className="pulse-dot" /> Correlating identity path and reasoning on blast radius…</p>
+                        ) : aiVerdict ? (
+                          <div className="cmd__verdict-text"><AriaMessageContent text={aiVerdict} /></div>
+                        ) : (
+                          <p>{`${alert?.attack}: ${alert?.user} targeting ${alert?.target}. Risk ${alert?.risk}/100 — review containment actions.`}</p>
+                        )}
+                      </div>
+                    </section>
+                  )}
+
                   {/* Stat cards */}
                   <div className="cmd__stats">
                     {[
-                      { icon: Fingerprint, label: 'Identities', val: '847', sub: 'monitored', tone: '' },
-                      { icon: TerminalWindow, label: 'Sigma rules', val: '1', sub: 'kerberoasting active', tone: 'ok' },
-                      { icon: Radioactive, label: 'MITRE', val: alert?.mitre ?? 'T1558.003', sub: 'technique mapped', tone: hasIncident ? 'warn' : '' },
-                      { icon: Database, label: 'Events/min', val: hasIncident ? '142' : '12', sub: connected ? 'pipeline live' : 'offline', tone: hasIncident ? 'crit' : '' },
+                      { icon: Fingerprint, label: 'Identities', val: String(identityCount), sub: 'in attack path graph', tone: '' },
+                      { icon: TerminalWindow, label: 'Sigma rules', val: String(sigmaRules.length || 0), sub: 'AD + Entra library', tone: 'ok' },
+                      { icon: Radioactive, label: 'MITRE', val: alert?.mitre ?? '—', sub: hasIncident ? 'technique mapped' : 'awaiting incident', tone: hasIncident ? 'warn' : '' },
+                      { icon: Database, label: 'Events/min', val: String(logActivity || (hasIncident ? timelineCount * 12 : 0)), sub: connected ? 'from event log' : 'offline', tone: hasIncident ? 'crit' : '' },
                     ].map(({ icon: Icon, label, val, sub, tone }) => (
                       <motion.div key={label} className={`stat-card ${tone ? `stat-card--${tone}` : ''}`} whileHover={{ y: -2 }}>
                         <Icon size={18} weight="duotone" />
@@ -412,7 +781,14 @@ export default function App() {
                           <h2><GlobeHemisphereWest size={13} weight="fill" /> Global telemetry</h2>
                           <button type="button" onClick={() => setView('telemetry')}>Expand →</button>
                         </div>
-                        <TelemetryGlobe active={hasIncident} contained={contained} />
+                        <TelemetryGlobe
+                          active={hasIncident}
+                          contained={contained}
+                          user={alert?.user}
+                          target={alert?.target}
+                          host={alert?.host}
+                          sourceIp={alert?.source_ip}
+                        />
                       </section>
 
                       <div className="cmd__feed-row">
@@ -423,7 +799,7 @@ export default function App() {
                           </div>
                           <ol className="activity-feed">
                             {timeline.map(({ ts, text }, i) => (
-                              <motion.li key={ts} className={i < timelineCount ? 'is-done' : ''} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.05 }}>
+                              <motion.li key={`${ts}-${i}`} className={i < timelineCount ? 'is-done' : ''} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.05 }}>
                                 <Clock size={12} weight="duotone" />
                                 <time>{ts}</time>
                                 <span>{text}</span>
@@ -459,12 +835,17 @@ export default function App() {
               )}
 
               {/* ── ATTACK PATH ── */}
-              {view === 'path' && attackPath && alert && (
+              {view === 'path' && attackPath && (
                 <div className="path-layout">
+                  {!alert && (
+                    <p className="hint path-layout__hint">Select an alert from Detection → Alert inbox to reconstruct its path.</p>
+                  )}
+                  {alert && (
+                  <>
                   <section className="glass-pane glass-pane--grow">
                     <div className="pane-head">
                       <h2>Attack path reconstruction</h2>
-                      <span>Kerberoasting → lateral movement · click nodes to inspect</span>
+                      <span>{alert.attack} · {alert.user} → {alert.target} · click nodes to inspect</span>
                     </div>
                     <AttackGraph
                       attackPath={attackPath}
@@ -473,7 +854,7 @@ export default function App() {
                       onFocus={setFocusedNode}
                       hasIncident={hasIncident}
                       contained={contained}
-                      height={520}
+                      height={380}
                     />
                   </section>
                   <aside className="glass-pane path-aside">
@@ -486,6 +867,12 @@ export default function App() {
                           <h3>{node.id}</h3>
                           <span className={`badge badge--${node.risk}`}>{node.risk} risk</span>
                           <p className="path-node-detail__type">{node.type.replace(/_/g, ' ')}</p>
+                          <AskAriaButton
+                            label="Explain this node"
+                            prompt={`Explain the role of identity "${node.id}" (${node.type}) in this Kerberoasting attack path and why its risk is ${node.risk}.`}
+                            onAsk={askAria}
+                            disabled={!hasIncident}
+                          />
                           <ul className="path-node-detail__edges">
                             {attackPath.edges.filter((e) => e.from === focus || e.to === focus).map((e) => (
                               <li key={`${e.from}-${e.to}`}>
@@ -499,28 +886,148 @@ export default function App() {
                       )
                     })()}
                   </aside>
+                  </>
+                  )}
                 </div>
               )}
 
               {/* ── DETECTION ── */}
               {view === 'detection' && (
                 <div className="detect-layout">
+                  {verify && (
+                    <section className="glass-pane span-2 detect-mvp">
+                      <div className="pane-head">
+                        <h2>MVP verification</h2>
+                        <span className={verify.ok ? 'txt-ok' : 'txt-warn'}>
+                          {verify.passed}/{verify.total} checks · {verify.ok ? 'All MVP requirements met' : 'Review failed checks'}
+                        </span>
+                      </div>
+                      <div className="detect-mvp__grid">
+                        {[
+                          { key: 'kerberoasting_poc', label: 'Kerberoasting PoC' },
+                          { key: 'sigma_rule', label: 'Sigma rule' },
+                          { key: 'wazuh_alert', label: 'Wazuh / SIEM alert' },
+                          { key: 'attack_verification', label: 'Attack verification' },
+                        ].map(({ key, label }) => (
+                          <div key={key} className={`detect-mvp__item ${verify.mvp[key as keyof typeof verify.mvp] ? 'is-pass' : 'is-fail'}`}>
+                            <ShieldCheck size={16} weight={verify.mvp[key as keyof typeof verify.mvp] ? 'fill' : 'duotone'} />
+                            <span>{label}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <ul className="detect-verify-list">
+                        {verify.checks.map((c) => (
+                          <li key={c.name} className={c.pass ? 'is-pass' : 'is-fail'}>
+                            <span>{c.pass ? '✓' : '○'}</span>
+                            <div><strong>{c.name}</strong><em>{c.detail}</em></div>
+                          </li>
+                        ))}
+                      </ul>
+                    </section>
+                  )}
+
+                  {hasIncident && explain && (
+                    <section className="glass-pane span-2 detect-explain">
+                      <div className="pane-head">
+                        <h2>Why this fired</h2>
+                        <span>{explain.mitre} · {explain.confidence ?? 'high'} confidence</span>
+                        <AskAriaButton
+                          label="Explain detection"
+                          prompt={`Explain why this ${explain.attack} alert fired for ${explain.user} → ${explain.target}. Reference the sigma chain and risk factors.`}
+                          onAsk={askAria}
+                          disabled={!hasIncident}
+                        />
+                      </div>
+                      <p className="detect-explain__summary">{explain.summary}</p>
+                      <div className="detect-explain__cols">
+                        <div>
+                          <h3>Sigma match chain</h3>
+                          <ol>{explain.sigma.map((s) => <li key={s}>{s}</li>)}</ol>
+                        </div>
+                        <div>
+                          <h3>Risk factors</h3>
+                          <ul className="detect-risk-factors">
+                            {explain.risk_factors.map((f) => (
+                              <li key={f.factor}>
+                                <span>{f.factor.replace(/_/g, ' ')}</span>
+                                <strong>+{f.points}</strong>
+                                <em>{f.description}</em>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                        <div>
+                          <h3>Evidence</h3>
+                          <ul>{explain.evidence.map((e) => <li key={e}>{e}</li>)}</ul>
+                        </div>
+                      </div>
+                    </section>
+                  )}
+
+                  <section className="glass-pane span-2">
+                    <div className="pane-head">
+                      <h2>Alert inbox</h2>
+                      <span>
+                        {filteredIncidents.length}/{realIncidents.length} live alerts
+                        {kpiFilter !== 'all' ? ` · filter: ${kpiFilter}` : ''}
+                        {' · '}select to analyze with ARIA
+                      </span>
+                      {kpiFilter !== 'all' && (
+                        <button type="button" className="ag__btn ag__btn--ghost" onClick={() => setKpiFilter('all')}>Clear filter</button>
+                      )}
+                    </div>
+                    <table className="data-table data-table--selectable">
+                      <thead><tr><th></th><th>Time</th><th>Attack</th><th>Source</th><th>Actor</th><th>Target</th><th>Host</th><th>Risk</th><th>Status</th><th></th></tr></thead>
+                      <tbody>
+                        {filteredIncidents.length === 0
+                          ? <tr><td colSpan={10} className="empty">No alerts match filter — try Run attack or Wazuh/Yara webhook</td></tr>
+                          : filteredIncidents.map((inc) => (
+                            <tr
+                              key={inc.id}
+                              className={inc.id === alert?.id ? 'is-active' : ''}
+                              onClick={() => selectIncident(inc.id)}
+                            >
+                              <td><input type="radio" checked={inc.id === alert?.id} readOnly aria-label={`Select ${inc.id}`} /></td>
+                              <td title={inc.time}>{formatLocalDateTime(inc.time)}</td>
+                              <td>{inc.attack}</td>
+                              <td><code>{inc.ingest_source ?? 'sample'}</code></td>
+                              <td>{inc.user}</td>
+                              <td>{inc.target}</td>
+                              <td>{inc.host}</td>
+                              <td><span className={`badge badge--${inc.severity}`}>{inc.id === alert?.id ? riskAfter : inc.risk}</span></td>
+                              <td>{inc.status === 'contained' ? 'Contained' : inc.simulation_active ? 'Correlating' : 'Open'}</td>
+                              <td>
+                                <AskAriaButton
+                                  label="Analyze"
+                                  prompt={`Analyze alert ${inc.id}: ${inc.attack} from ${inc.user} targeting ${inc.target} on ${inc.host}. Risk ${inc.risk}.`}
+                                  onAsk={(p) => { selectIncident(inc.id); askAria(p) }}
+                                  disabled={false}
+                                  className="ask-aria--table"
+                                />
+                              </td>
+                            </tr>
+                          ))
+                        }
+                      </tbody>
+                    </table>
+                  </section>
+
                   <section className="glass-pane">
-                    <div className="pane-head"><h2>Incident log</h2></div>
+                    <div className="pane-head"><h2>Selected incident</h2></div>
                     <table className="data-table">
                       <thead><tr><th>Time</th><th>Event</th><th>Actor</th><th>Target</th><th>Host</th><th>Risk</th><th>Status</th></tr></thead>
                       <tbody>
-                        {hasIncident && alert
+                        {alert
                           ? <tr className="is-active">
-                              <td>{alert.time?.slice(11, 19)}</td>
+                              <td>{formatLocalDateTime(alert.time)}</td>
                               <td><code>{alert.event_id}</code></td>
                               <td>{alert.user}</td>
                               <td>{alert.target}</td>
                               <td>{alert.host}</td>
                               <td><span className={`badge badge--${alert.severity}`}>{riskAfter}</span></td>
-                              <td>{contained ? 'Contained' : 'Open'}</td>
+                              <td>{contained ? 'Contained' : simulating ? 'Correlating' : 'Open'}</td>
                             </tr>
-                          : <tr><td colSpan={7} className="empty">No incidents — run kerberoast or simulate</td></tr>
+                          : <tr><td colSpan={7} className="empty">No incident selected</td></tr>
                         }
                       </tbody>
                     </table>
@@ -529,7 +1036,7 @@ export default function App() {
                     <div className="pane-head"><h2>Attack timeline</h2></div>
                     <ol className="timeline-list">
                       {timeline.map(({ ts, text }, i) => (
-                        <li key={ts} className={i < timelineCount ? 'is-done' : ''}>
+                        <li key={`${ts}-${i}`} className={i < timelineCount ? 'is-done' : ''}>
                           <div className="timeline-list__dot" />
                           <time>{ts}</time>
                           <span>{text}</span>
@@ -539,8 +1046,22 @@ export default function App() {
                   </section>
                   <section className="glass-pane span-2">
                     <div className="pane-head">
-                      <h2>Sigma rule</h2>
-                      <span>authgraph-kerberoasting-4769 · T1558.003</span>
+                      <h2>Sigma rule library</h2>
+                      <span>{sigmaRules.length} rules · AD + Entra ID</span>
+                    </div>
+                    <div className="sigma-library">
+                      {sigmaRules.map((rule) => (
+                        <button
+                          key={rule.id}
+                          type="button"
+                          className={`sigma-library__item ${selectedSigmaId === rule.id ? 'is-active' : ''}`}
+                          onClick={() => setSelectedSigmaId(rule.id)}
+                        >
+                          <strong>{rule.title}</strong>
+                          <span>{rule.platform}</span>
+                          <em>{rule.mitre} · {rule.status}</em>
+                        </button>
+                      ))}
                     </div>
                     <pre className="code-block">{sigmaYaml || 'Loading…'}</pre>
                   </section>
@@ -553,26 +1074,103 @@ export default function App() {
                   <section className="glass-pane glass-pane--grow">
                     <div className="pane-head">
                       <h2>Response actions</h2>
-                      <span>{contained ? 'Executed · deepseek-v4-pro' : aiActions.length ? 'AI · OpenRouter' : 'Playbook'}</span>
+                      <span>
+                        {contained
+                          ? `Executed · ${containMode === 'live' ? 'live AD' : 'playbook dry-run'}`
+                          : aiActions.length
+                            ? 'Proposed · approve then Execute'
+                            : aiStatus === 'pending'
+                              ? 'ARIA generating actions…'
+                              : 'Waiting for incident'}
+                      </span>
                     </div>
+                    {!contained && aiActions.length > 0 && (
+                      <div className="response-approve-bar">
+                        <button type="button" className="ag__btn ag__btn--ghost" onClick={approveAllActions}>
+                          Approve all
+                        </button>
+                        <span>{approvedActions.size}/{responseList.length} approved</span>
+                      </div>
+                    )}
                     <ol className="action-list action-list--wide">
                       {responseList.map((a, i) => (
                         <motion.li
                           key={a}
+                          className={approvedActions.has(a) ? 'is-approved' : ''}
                           initial={{ opacity: 0, x: -12 }}
                           animate={{ opacity: 1, x: 0 }}
                           transition={{ delay: i * 0.07, ease: [0.16, 1, 0.3, 1] }}
                         >
+                          {!contained && aiActions.length > 0 && (
+                            <label className="action-approve">
+                              <input
+                                type="checkbox"
+                                checked={approvedActions.has(a)}
+                                onChange={() => toggleActionApproval(a)}
+                              />
+                            </label>
+                          )}
                           <span>{i + 1}</span>
                           <div>
                             <strong>{a}</strong>
-                            <small>Priority {i + 1}</small>
+                            <small>
+                              {aiActionDetails[i]?.rationale
+                                ? `${aiActionDetails[i].owner} · ${aiActionDetails[i].rationale}`
+                                : `Priority ${i + 1}`}
+                            </small>
                           </div>
                           {contained && <ShieldCheck size={16} weight="fill" className="txt-ok" />}
+                          {!contained && approvedActions.has(a) && <ShieldCheck size={16} weight="duotone" className="txt-ok" />}
                         </motion.li>
                       ))}
                     </ol>
-                    {!hasIncident && <p className="hint">Response actions appear when an incident is active. Use ARIA (bottom-right) for live analysis.</p>}
+                    {!hasIncident && <p className="hint">Run attack demo or ingest a Wazuh Kerberoasting webhook. Then approve actions and click Execute in the top bar.</p>}
+                    {contained && containExecution.length > 0 && (
+                      <div className="response-exec-log">
+                        <h3>Playbook execution log</h3>
+                        <p className="hint">{containMode === 'live' ? 'Commands ran against lab AD.' : 'Dry-run mode — set LAB_AD_ENABLED=true in backend/.env for live execution.'}</p>
+                        <ol>
+                          {containExecution.map((ex) => (
+                            <li key={ex.playbook_id + ex.action} className={`response-exec-log__item response-exec-log__item--${ex.status}`}>
+                              <strong>{ex.action}</strong>
+                              <code>{ex.command}</code>
+                              <span>{ex.status} — {ex.message}</span>
+                            </li>
+                          ))}
+                        </ol>
+                      </div>
+                    )}
+                  </section>
+                </div>
+              )}
+
+              {/* ── LOGS ── */}
+              {view === 'logs' && (
+                <div className="logs-layout">
+                  <section className="glass-pane glass-pane--grow">
+                    <div className="pane-head">
+                      <h2>Security event log</h2>
+                      <span>{eventLogs.length} events · webhooks · containment · ARIA · system</span>
+                    </div>
+                    <div className="logs-stream">
+                      {eventLogs.length === 0
+                        ? <p className="hint">No events yet — run attack, ingest Wazuh/Yara webhook, or execute containment. Logs sync every 4s when backend is connected.</p>
+                        : eventLogs.map((ev) => (
+                          <div key={ev.id} className={`logs-stream__row logs-stream__row--${ev.level}`}>
+                            <time title={ev.ts ?? ''}>{formatLocalDateTime(ev.ts)} <em>{formatRelative(ev.ts)}</em></time>
+                            <span className={`logs-stream__level logs-stream__level--${ev.level}`}>{ev.level}</span>
+                            <span className="logs-stream__msg">{ev.message}</span>
+                            {ev.preview && <code className="logs-stream__cmd">{ev.preview}</code>}
+                            {ev.incident_id && (
+                              <button type="button" className="logs-stream__link" onClick={() => { selectIncident(ev.incident_id!); setView('detection') }}>
+                                {ev.incident_id}
+                              </button>
+                            )}
+                            {ev.command && <code className="logs-stream__cmd">{ev.command}</code>}
+                          </div>
+                        ))
+                      }
+                    </div>
                   </section>
                 </div>
               )}
@@ -582,9 +1180,17 @@ export default function App() {
                 <section className="glass-pane glass-pane--telemetry">
                   <div className="pane-head">
                     <h2>Global domain telemetry</h2>
-                    <span>Interactive · click pins · drag to rotate · scroll to zoom</span>
+                    <span>Live identity threat map · Wazuh + AD correlation</span>
                   </div>
-                  <TelemetryGlobe active={hasIncident} contained={contained} expanded />
+                  <TelemetryGlobe
+                    active={hasIncident}
+                    contained={contained}
+                    expanded
+                    user={alert?.user}
+                    target={alert?.target}
+                    host={alert?.host}
+                    sourceIp={alert?.source_ip}
+                  />
                 </section>
               )}
 
@@ -593,7 +1199,20 @@ export default function App() {
         </main>
       </div>
 
-      <FloatingCopilot incidentId={alert?.id} disabled={!hasIncident} hasIncident={hasIncident} viewContext={`${view} view`} />
+      <FloatingCopilot
+        incidentId={alert?.id}
+        disabled={!hasIncident}
+        hasIncident={hasIncident}
+        hideFab={view === 'telemetry'}
+        viewContext={`${view} view`}
+        incidentHeadline={aiHeadline}
+        incidentVerdict={aiVerdict}
+        incidentUser={alert?.user}
+        incidentTarget={alert?.target}
+        incidentRisk={alert?.risk}
+        pendingPrompt={copilotPrompt}
+        onPromptHandled={() => setCopilotPrompt(null)}
+      />
     </div>
   )
 }

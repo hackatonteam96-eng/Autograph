@@ -31,15 +31,8 @@ export default function AttackPathPipeline({
   hasIncident,
   contained,
 }: Props) {
-  const ordered = [
-    'lowpriv.user',
-    'svc-sql',
-    'SQL Admins',
-    'SQL-SERVER',
-    'Domain Sensitive Assets',
-  ]
-
-  const nodes = ordered
+  const orderedIds = attackPath.nodes.map((n) => n.id)
+  const nodes = orderedIds
     .map((id) => attackPath.nodes.find((n) => n.id === id))
     .filter(Boolean) as AttackPath['nodes']
 
@@ -52,7 +45,7 @@ export default function AttackPathPipeline({
           const meta = TYPE_META[node.type] ?? TYPE_META.user
           const Icon = meta.icon
           const edge = edges.find((e) => e.from === node.id)
-          const isHot = hasIncident && !contained && (node.id === targetId || node.id === 'lowpriv.user')
+          const isHot = hasIncident && !contained && (node.id === targetId || node.id === nodes[0]?.id)
           const isFocus = node.id === focusedId
 
           return (
@@ -60,7 +53,7 @@ export default function AttackPathPipeline({
               <motion.button
                 type="button"
                 className={[
-                  'pipeline__node',
+                  'pipeline__node pipeline__node--row',
                   `pipeline__node--${node.risk}`,
                   isFocus ? 'is-focused' : '',
                   isHot ? 'is-hot' : '',
@@ -72,19 +65,21 @@ export default function AttackPathPipeline({
                 transition={{ duration: 0.15 }}
               >
                 <div className="pipeline__node-icon" style={{ color: meta.color }}>
-                  <Icon size={18} weight="duotone" />
+                  <Icon size={20} weight="duotone" />
                   {isHot && !contained && <span className="pipeline__node-pulse" />}
                 </div>
-                <strong title={node.id}>{SHORT[node.id] ?? node.id}</strong>
-                <span>{node.type.replace(/_/g, ' ')}</span>
-                <em className={`pipeline__risk pipeline__risk--${node.risk}`}>{node.risk}</em>
+                <div className="pipeline__node-copy">
+                  <strong title={node.id}>{SHORT[node.id] ?? node.id}</strong>
+                  <span>{node.type.replace(/_/g, ' ')}</span>
+                  <em className={`pipeline__risk pipeline__risk--${node.risk}`}>{node.risk}</em>
+                </div>
               </motion.button>
 
               {edge && i < nodes.length - 1 && (
-                <div className={`pipeline__edge ${isHot && !contained ? 'is-hot' : ''}`}>
+                <div className={`pipeline__edge pipeline__edge--row ${isHot && !contained ? 'is-hot' : ''}`}>
                   <div className="pipeline__edge-line" />
-                  <span>{edge.label}</span>
-                  <ArrowRight size={12} weight="bold" />
+                  <span className="pipeline__edge-label">{edge.label}</span>
+                  <ArrowRight size={14} weight="bold" />
                 </div>
               )}
             </div>

@@ -12,22 +12,13 @@ import {
   type Node,
   type NodeProps,
 } from '@xyflow/react'
-import { Database, Graph, Key, LockKey, UserCircle } from '@phosphor-icons/react'
+import { ArrowRight, Database, Graph, Key, LockKey, UserCircle } from '@phosphor-icons/react'
 import type { AttackPath } from '../api/client'
 
 export type AttackNodeData = AttackPath['nodes'][number] & {
   focused?: boolean
   onPath?: boolean
   contained?: boolean
-}
-
-/* Single horizontal row — readable, no zigzag clipping */
-const POSITIONS: Record<string, { x: number; y: number }> = {
-  'lowpriv.user':            { x: 0,    y: 100 },
-  'svc-sql':                 { x: 240,  y: 100 },
-  'SQL Admins':              { x: 480,  y: 100 },
-  'SQL-SERVER':              { x: 720,  y: 100 },
-  'Domain Sensitive Assets': { x: 960,  y: 100 },
 }
 
 const DISPLAY: Record<string, string> = {
@@ -42,6 +33,15 @@ const TYPE_META: Record<string, { icon: typeof UserCircle; color: string }> = {
   asset:           { icon: LockKey,    color: '#ff5c5c' },
 }
 
+function layoutNodes(nodes: AttackPath['nodes']) {
+  const gap = 300
+  return nodes.map((node, i) => ({
+    id: node.id,
+    x: i * gap,
+    y: 24,
+  }))
+}
+
 const AttackNode = memo(function AttackNode({ data }: NodeProps<Node<AttackNodeData>>) {
   const meta = TYPE_META[data.type] ?? TYPE_META.user
   const Icon = meta.icon
@@ -50,7 +50,7 @@ const AttackNode = memo(function AttackNode({ data }: NodeProps<Node<AttackNodeD
 
   return (
     <div className={[
-      'anode',
+      'anode anode--card',
       `anode--${data.risk}`,
       data.focused   ? 'is-focused'    : '',
       data.onPath    ? 'is-on-path'    : '',
@@ -58,7 +58,7 @@ const AttackNode = memo(function AttackNode({ data }: NodeProps<Node<AttackNodeD
     ].join(' ')}>
       <Handle type="target" position={Position.Left}  className="anode__handle" />
       <div className="anode__icon" style={{ '--node-color': meta.color } as React.CSSProperties}>
-        <Icon size={20} weight="duotone" />
+        <Icon size={22} weight="duotone" />
         {isCrit && !data.contained && data.onPath && <span className="anode__pulse" />}
       </div>
       <div className="anode__text">
@@ -76,7 +76,7 @@ const nodeTypes = { attackNode: AttackNode }
 function FitViewOnLoad() {
   const { fitView } = useReactFlow()
   useEffect(() => {
-    const t = window.setTimeout(() => fitView({ padding: 0.18, duration: 400 }), 50)
+    const t = window.setTimeout(() => fitView({ padding: 0.32, duration: 400 }), 50)
     return () => window.clearTimeout(t)
   }, [fitView])
   return null
@@ -102,15 +102,18 @@ export default function AttackGraph({
   height = 420,
 }: Props) {
   const focus = focusedId ?? targetId
+  const positions = useMemo(() => layoutNodes(attackPath.nodes), [attackPath.nodes])
 
   const { nodes, edges } = useMemo(() => {
     const pathIds = new Set<string>()
     attackPath.edges.forEach((e) => { pathIds.add(e.from); pathIds.add(e.to) })
 
+    const posMap = Object.fromEntries(positions.map((p) => [p.id, p]))
+
     const nodes: Node<AttackNodeData>[] = attackPath.nodes.map((node) => ({
       id: node.id,
       type: 'attackNode',
-      position: POSITIONS[node.id] ?? { x: 0, y: 0 },
+      position: posMap[node.id] ?? { x: 0, y: 20 },
       data: {
         ...node,
         focused:   node.id === focus,
@@ -119,18 +122,18 @@ export default function AttackGraph({
       },
       draggable:  false,
       selectable: true,
+      zIndex: node.id === focus ? 10 : 1,
     }))
 
     const edges: Edge[] = attackPath.edges.map((edge) => {
       const onActivePath = hasIncident && !contained
-      const isFirst = edge.from === 'lowpriv.user'
+      const isFirst = edge.from === attackPath.nodes[0]?.id
       const isHot = onActivePath && (isFirst || edge.to === targetId || edge.from === targetId)
       return {
         id: `${edge.from}-${edge.to}`,
         source: edge.from,
         target: edge.to,
-        label: edge.label,
-        animated: false,
+        animated: isHot,
         type: 'smoothstep',
         markerEnd: {
           type: MarkerType.ArrowClosed,
@@ -143,19 +146,12 @@ export default function AttackGraph({
           strokeWidth: isHot ? 2.5 : 1.8,
           filter: isHot ? 'drop-shadow(0 0 8px rgba(255,92,92,0.55))' : 'none',
         },
-        labelStyle: {
-          fill: '#b8cce0',
-          fontSize: 11,
-          fontFamily: '"JetBrains Mono", monospace',
-          fontWeight: 600,
-        },
-        labelBgStyle: { fill: 'rgba(10,16,26,0.95)', rx: 5, stroke: 'rgba(255,255,255,0.08)', strokeWidth: 1 },
-        labelBgPadding: [6, 8] as [number, number],
+        zIndex: 0,
       }
     })
 
     return { nodes, edges }
-  }, [attackPath, focus, targetId, hasIncident, contained])
+  }, [attackPath, focus, targetId, hasIncident, contained, positions])
 
   const onNodeClick = useCallback(
     (_: React.MouseEvent, node: Node) => onFocus(node.id),
@@ -163,26 +159,42 @@ export default function AttackGraph({
   )
 
   return (
-    <div className="apath apath--full" style={{ height }}>
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        nodeTypes={nodeTypes}
-        onNodeClick={onNodeClick}
-        defaultViewport={{ x: 0, y: 0, zoom: 0.85 }}
-        minZoom={0.45}
-        maxZoom={1.4}
-        nodesDraggable={false}
-        nodesConnectable={false}
-        elementsSelectable
-        panOnScroll
-        zoomOnScroll
-        proOptions={{ hideAttribution: true }}
-      >
-        <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="#1a2838" />
-        <Controls showInteractive={false} position="bottom-left" className="apath__controls" />
-        <FitViewOnLoad />
-      </ReactFlow>
+    <div className="apath-wrap">
+      <div className="apath apath--full" style={{ height }}>
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          nodeTypes={nodeTypes}
+          onNodeClick={onNodeClick}
+          defaultViewport={{ x: 0, y: 0, zoom: 0.9 }}
+          minZoom={0.45}
+          maxZoom={1.4}
+          nodesDraggable={false}
+          nodesConnectable={false}
+          elementsSelectable
+          panOnScroll
+          zoomOnScroll
+          proOptions={{ hideAttribution: true }}
+        >
+          <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="#1a2838" />
+          <Controls showInteractive={false} position="bottom-left" className="apath__controls" />
+          <FitViewOnLoad />
+        </ReactFlow>
+      </div>
+      <div className="apath-legend">
+        {attackPath.edges.map((edge) => {
+          const hot = hasIncident && !contained && (edge.to === targetId || edge.from === attackPath.nodes[0]?.id)
+          return (
+            <div key={`${edge.from}-${edge.to}`} className={`apath-legend__step ${hot ? 'is-hot' : ''}`}>
+              <span className="apath-legend__from">{DISPLAY[edge.from] ?? edge.from}</span>
+              <ArrowRight size={14} weight="bold" />
+              <span className="apath-legend__label">{edge.label}</span>
+              <ArrowRight size={14} weight="bold" />
+              <span className="apath-legend__to">{DISPLAY[edge.to] ?? edge.to}</span>
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }

@@ -1,0 +1,414 @@
+[
+  {
+    "id": "log-1781321812105-c85u8q",
+    "ts": "2026-06-13T03:36:52.105Z",
+    "level": "action",
+    "message": "Containment executed on alert-001",
+    "incident_id": "alert-001",
+    "actions": 5,
+    "mode": "simulated",
+    "risk_before": 87,
+    "risk_after": 32
+  },
+  {
+    "id": "log-1781321812103-musom3",
+    "ts": "2026-06-13T03:36:52.103Z",
+    "level": "action",
+    "message": "Playbook dry-run: Rotate credentials for exposed service account",
+    "incident_id": "alert-001",
+    "playbook_id": "rotate_service_password",
+    "command": "Set-ADAccountPassword -Identity 'svc-sql' -Reset -PassThru | Set-ADUser -ChangePasswordAtLogon $true",
+    "status": "simulated"
+  },
+  {
+    "id": "log-1781321812102-swuy81",
+    "ts": "2026-06-13T03:36:52.102Z",
+    "level": "action",
+    "message": "Playbook dry-run: Investigate source user session",
+    "incident_id": "alert-001",
+    "playbook_id": "revoke_sessions",
+    "command": "Get-ADUser 'lab.test@autograph.lab' | Revoke-ADUserAllCertificates; # + force logoff via SOAR",
+    "status": "simulated"
+  },
+  {
+    "id": "log-1781321812101-wb3lz2",
+    "ts": "2026-06-13T03:36:52.101Z",
+    "level": "action",
+    "message": "Playbook dry-run: Review SPN ownership",
+    "incident_id": "alert-001",
+    "playbook_id": "review_spn",
+    "command": "Set-ADUser -Identity 'svc-sql' -ServicePrincipalNames @{} # Review before apply",
+    "status": "simulated"
+  },
+  {
+    "id": "log-1781321812100-xvxtq4",
+    "ts": "2026-06-13T03:36:52.100Z",
+    "level": "action",
+    "message": "Playbook dry-run: Disable RC4 Kerberos encryption",
+    "incident_id": "alert-001",
+    "playbook_id": "rc4_hardening",
+    "command": "Set-ADDomain -Replace @{'msDS-SupportedEncryptionTypes'='24'} # AES only — lab GPO equivalent",
+    "status": "simulated"
+  },
+  {
+    "id": "log-1781321812098-88sb0c",
+    "ts": "2026-06-13T03:36:52.098Z",
+    "level": "action",
+    "message": "Playbook dry-run: Reset service account password",
+    "incident_id": "alert-001",
+    "playbook_id": "rotate_service_password",
+    "command": "Set-ADAccountPassword -Identity 'svc-sql' -Reset -PassThru | Set-ADUser -ChangePasswordAtLogon $true",
+    "status": "simulated"
+  },
+  {
+    "id": "log-1781321812023-asva5w",
+    "ts": "2026-06-13T03:36:52.023Z",
+    "level": "system",
+    "message": "Dashboard reset — placeholder and simulation state cleared"
+  },
+  {
+    "id": "log-1781321799734-nogv9b",
+    "ts": "2026-06-13T03:36:39.734Z",
+    "level": "action",
+    "message": "Containment executed on alert-001",
+    "incident_id": "alert-001",
+    "actions": 5,
+    "mode": "simulated",
+    "risk_before": 87,
+    "risk_after": 32
+  },
+  {
+    "id": "log-1781321799732-hbw7st",
+    "ts": "2026-06-13T03:36:39.732Z",
+    "level": "action",
+    "message": "Playbook dry-run: Rotate credentials for exposed service account",
+    "incident_id": "alert-001",
+    "playbook_id": "rotate_service_password",
+    "command": "Set-ADAccountPassword -Identity 'svc-sql' -Reset -PassThru | Set-ADUser -ChangePasswordAtLogon $true",
+    "status": "simulated"
+  },
+  {
+    "id": "log-1781321799730-8etyms",
+    "ts": "2026-06-13T03:36:39.730Z",
+    "level": "action",
+    "message": "Playbook dry-run: Investigate source user session",
+    "incident_id": "alert-001",
+    "playbook_id": "revoke_sessions",
+    "command": "Get-ADUser 'lab.test@autograph.lab' | Revoke-ADUserAllCertificates; # + force logoff via SOAR",
+    "status": "simulated"
+  },
+  {
+    "id": "log-1781321799729-fljssc",
+    "ts": "2026-06-13T03:36:39.729Z",
+    "level": "action",
+    "message": "Playbook dry-run: Review SPN ownership",
+    "incident_id": "alert-001",
+    "playbook_id": "review_spn",
+    "command": "Set-ADUser -Identity 'svc-sql' -ServicePrincipalNames @{} # Review before apply",
+    "status": "simulated"
+  },
+  {
+    "id": "log-1781321799727-jhezmu",
+    "ts": "2026-06-13T03:36:39.727Z",
+    "level": "action",
+    "message": "Playbook dry-run: Disable RC4 Kerberos encryption",
+    "incident_id": "alert-001",
+    "playbook_id": "rc4_hardening",
+    "command": "Set-ADDomain -Replace @{'msDS-SupportedEncryptionTypes'='24'} # AES only — lab GPO equivalent",
+    "status": "simulated"
+  },
+  {
+    "id": "log-1781321799725-4lfc45",
+    "ts": "2026-06-13T03:36:39.725Z",
+    "level": "action",
+    "message": "Playbook dry-run: Reset service account password",
+    "incident_id": "alert-001",
+    "playbook_id": "rotate_service_password",
+    "command": "Set-ADAccountPassword -Identity 'svc-sql' -Reset -PassThru | Set-ADUser -ChangePasswordAtLogon $true",
+    "status": "simulated"
+  },
+  {
+    "id": "log-1781321799651-fnzem4",
+    "ts": "2026-06-13T03:36:39.651Z",
+    "level": "system",
+    "message": "Dashboard reset — placeholder and simulation state cleared"
+  },
+  {
+    "id": "log-1781321788770-5k5cm9",
+    "ts": "2026-06-13T03:36:28.770Z",
+    "level": "action",
+    "message": "Containment executed on alert-001",
+    "incident_id": "alert-001",
+    "actions": 5,
+    "mode": "simulated",
+    "risk_before": 87,
+    "risk_after": 32
+  },
+  {
+    "id": "log-1781321788768-e2dte7",
+    "ts": "2026-06-13T03:36:28.768Z",
+    "level": "action",
+    "message": "Playbook dry-run: Rotate credentials for exposed service account",
+    "incident_id": "alert-001",
+    "playbook_id": "rotate_service_password",
+    "command": "Set-ADAccountPassword -Identity 'svc-sql' -Reset -PassThru | Set-ADUser -ChangePasswordAtLogon $true",
+    "status": "simulated"
+  },
+  {
+    "id": "log-1781321788766-0qzzr7",
+    "ts": "2026-06-13T03:36:28.766Z",
+    "level": "action",
+    "message": "Playbook dry-run: Investigate source user session",
+    "incident_id": "alert-001",
+    "playbook_id": "revoke_sessions",
+    "command": "Get-ADUser 'lab.test@autograph.lab' | Revoke-ADUserAllCertificates; # + force logoff via SOAR",
+    "status": "simulated"
+  },
+  {
+    "id": "log-1781321788764-mgjg39",
+    "ts": "2026-06-13T03:36:28.764Z",
+    "level": "action",
+    "message": "Playbook dry-run: Review SPN ownership",
+    "incident_id": "alert-001",
+    "playbook_id": "review_spn",
+    "command": "Set-ADUser -Identity 'svc-sql' -ServicePrincipalNames @{} # Review before apply",
+    "status": "simulated"
+  },
+  {
+    "id": "log-1781321788762-wouj8r",
+    "ts": "2026-06-13T03:36:28.763Z",
+    "level": "action",
+    "message": "Playbook dry-run: Disable RC4 Kerberos encryption",
+    "incident_id": "alert-001",
+    "playbook_id": "rc4_hardening",
+    "command": "Set-ADDomain -Replace @{'msDS-SupportedEncryptionTypes'='24'} # AES only — lab GPO equivalent",
+    "status": "simulated"
+  },
+  {
+    "id": "log-1781321788761-epwvra",
+    "ts": "2026-06-13T03:36:28.761Z",
+    "level": "action",
+    "message": "Playbook dry-run: Reset service account password",
+    "incident_id": "alert-001",
+    "playbook_id": "rotate_service_password",
+    "command": "Set-ADAccountPassword -Identity 'svc-sql' -Reset -PassThru | Set-ADUser -ChangePasswordAtLogon $true",
+    "status": "simulated"
+  },
+  {
+    "id": "log-1781321788697-k2gs4t",
+    "ts": "2026-06-13T03:36:28.697Z",
+    "level": "system",
+    "message": "Dashboard reset — placeholder and simulation state cleared"
+  },
+  {
+    "id": "log-1781321778253-czxcmf",
+    "ts": "2026-06-13T03:36:18.253Z",
+    "level": "system",
+    "message": "Dashboard reset — placeholder and simulation state cleared"
+  },
+  {
+    "id": "log-1781321769566-x8irk0",
+    "ts": "2026-06-13T03:36:09.566Z",
+    "level": "action",
+    "message": "Containment POST /api/contain/alert-001 → 404",
+    "ms": 1,
+    "status": 404
+  },
+  {
+    "id": "log-1781321769533-lezj48",
+    "ts": "2026-06-13T03:36:09.533Z",
+    "level": "system",
+    "message": "Dashboard reset — placeholder and simulation state cleared"
+  },
+  {
+    "id": "log-1781321732326-a4tjjr",
+    "ts": "2026-06-13T03:35:32.326Z",
+    "level": "action",
+    "message": "Containment POST /api/contain/alert-001 → 404",
+    "ms": 1,
+    "status": 404
+  },
+  {
+    "id": "log-1781321732295-lro1t5",
+    "ts": "2026-06-13T03:35:32.295Z",
+    "level": "system",
+    "message": "Dashboard reset — placeholder and simulation state cleared"
+  },
+  {
+    "id": "log-1781321720241-5k8xb1",
+    "ts": "2026-06-13T03:35:20.241Z",
+    "level": "action",
+    "message": "Containment POST /api/contain/alert-001 → 404",
+    "ms": 2,
+    "status": 404
+  },
+  {
+    "id": "log-1781321720205-jlf4e6",
+    "ts": "2026-06-13T03:35:20.206Z",
+    "level": "system",
+    "message": "Dashboard reset — placeholder and simulation state cleared"
+  },
+  {
+    "id": "log-1781321702820-74fcid",
+    "ts": "2026-06-13T03:35:02.820Z",
+    "level": "action",
+    "message": "Containment POST /api/contain/alert-001 → 404",
+    "ms": 2,
+    "status": 404
+  },
+  {
+    "id": "log-1781321702759-peyim9",
+    "ts": "2026-06-13T03:35:02.759Z",
+    "level": "system",
+    "message": "Dashboard reset — placeholder and simulation state cleared"
+  },
+  {
+    "id": "log-1781320198683-c2r6f4",
+    "ts": "2026-06-13T03:09:58.683Z",
+    "level": "action",
+    "message": "Containment POST /api/contain/alert-001 → 200",
+    "ms": 8,
+    "status": 200
+  },
+  {
+    "id": "log-1781320198682-xk1gu1",
+    "ts": "2026-06-13T03:09:58.682Z",
+    "level": "action",
+    "message": "Containment executed on alert-001",
+    "incident_id": "alert-001",
+    "actions": 5,
+    "mode": "simulated",
+    "risk_before": 87,
+    "risk_after": 32
+  },
+  {
+    "id": "log-1781320198681-3refkw",
+    "ts": "2026-06-13T03:09:58.681Z",
+    "level": "action",
+    "message": "Playbook dry-run: Rotate credentials for exposed service account",
+    "incident_id": "alert-001",
+    "playbook_id": "rotate_service_password",
+    "command": "Set-ADAccountPassword -Identity 'svc-sql' -Reset -PassThru | Set-ADUser -ChangePasswordAtLogon $true",
+    "status": "simulated"
+  },
+  {
+    "id": "log-1781320198681-zmo09f",
+    "ts": "2026-06-13T03:09:58.681Z",
+    "level": "action",
+    "message": "Playbook dry-run: Investigate source user session",
+    "incident_id": "alert-001",
+    "playbook_id": "revoke_sessions",
+    "command": "Get-ADUser 'lowpriv.user' | Revoke-ADUserAllCertificates; # + force logoff via SOAR",
+    "status": "simulated"
+  },
+  {
+    "id": "log-1781320198680-nu4vdj",
+    "ts": "2026-06-13T03:09:58.680Z",
+    "level": "action",
+    "message": "Playbook dry-run: Review SPN ownership",
+    "incident_id": "alert-001",
+    "playbook_id": "review_spn",
+    "command": "Set-ADUser -Identity 'svc-sql' -ServicePrincipalNames @{} # Review before apply",
+    "status": "simulated"
+  },
+  {
+    "id": "log-1781320198679-l81guq",
+    "ts": "2026-06-13T03:09:58.679Z",
+    "level": "action",
+    "message": "Playbook dry-run: Disable RC4 Kerberos encryption",
+    "incident_id": "alert-001",
+    "playbook_id": "rc4_hardening",
+    "command": "Set-ADDomain -Replace @{'msDS-SupportedEncryptionTypes'='24'} # AES only — lab GPO equivalent",
+    "status": "simulated"
+  },
+  {
+    "id": "log-1781320198679-67fxma",
+    "ts": "2026-06-13T03:09:58.679Z",
+    "level": "action",
+    "message": "Playbook dry-run: Reset service account password",
+    "incident_id": "alert-001",
+    "playbook_id": "rotate_service_password",
+    "command": "Set-ADAccountPassword -Identity 'svc-sql' -Reset -PassThru | Set-ADUser -ChangePasswordAtLogon $true",
+    "status": "simulated"
+  },
+  {
+    "id": "log-1781320198641-ka5ilv",
+    "ts": "2026-06-13T03:09:58.641Z",
+    "level": "system",
+    "message": "Demo reset — simulation and containment state cleared"
+  },
+  {
+    "id": "log-1781319817235-0wcp00",
+    "ts": "2026-06-13T03:03:37.235Z",
+    "level": "action",
+    "message": "Containment executed on alert-001",
+    "incident_id": "alert-001",
+    "actions": 5,
+    "mode": "simulated",
+    "risk_before": 87,
+    "risk_after": 32
+  },
+  {
+    "id": "log-1781319817233-s7okcb",
+    "ts": "2026-06-13T03:03:37.233Z",
+    "level": "action",
+    "message": "Playbook dry-run: Rotate credentials for exposed service account",
+    "incident_id": "alert-001",
+    "playbook_id": "rotate_service_password",
+    "command": "Set-ADAccountPassword -Identity 'svc-sql' -Reset -PassThru | Set-ADUser -ChangePasswordAtLogon $true",
+    "status": "simulated"
+  },
+  {
+    "id": "log-1781319817232-9djtbi",
+    "ts": "2026-06-13T03:03:37.232Z",
+    "level": "action",
+    "message": "Playbook dry-run: Investigate source user session",
+    "incident_id": "alert-001",
+    "playbook_id": "revoke_sessions",
+    "command": "Get-ADUser 'lowpriv.user' | Revoke-ADUserAllCertificates; # + force logoff via SOAR",
+    "status": "simulated"
+  },
+  {
+    "id": "log-1781319817231-zr0var",
+    "ts": "2026-06-13T03:03:37.231Z",
+    "level": "action",
+    "message": "Playbook dry-run: Review SPN ownership",
+    "incident_id": "alert-001",
+    "playbook_id": "review_spn",
+    "command": "Set-ADUser -Identity 'svc-sql' -ServicePrincipalNames @{} # Review before apply",
+    "status": "simulated"
+  },
+  {
+    "id": "log-1781319817230-67hzcf",
+    "ts": "2026-06-13T03:03:37.230Z",
+    "level": "action",
+    "message": "Playbook dry-run: Disable RC4 Kerberos encryption",
+    "incident_id": "alert-001",
+    "playbook_id": "rc4_hardening",
+    "command": "Set-ADDomain -Replace @{'msDS-SupportedEncryptionTypes'='24'} # AES only — lab GPO equivalent",
+    "status": "simulated"
+  },
+  {
+    "id": "log-1781319817229-sjwxth",
+    "ts": "2026-06-13T03:03:37.229Z",
+    "level": "action",
+    "message": "Playbook dry-run: Reset service account password",
+    "incident_id": "alert-001",
+    "playbook_id": "rotate_service_password",
+    "command": "Set-ADAccountPassword -Identity 'svc-sql' -Reset -PassThru | Set-ADUser -ChangePasswordAtLogon $true",
+    "status": "simulated"
+  },
+  {
+    "id": "log-1781319817188-nhoqdt",
+    "ts": "2026-06-13T03:03:37.188Z",
+    "level": "system",
+    "message": "Demo reset — simulation and containment state cleared"
+  },
+  {
+    "id": "log-1781319817042-0fgwxh",
+    "ts": "2026-06-13T03:03:37.042Z",
+    "level": "system",
+    "message": "AuthGraph data store initialized",
+    "data_dir": "C:\\Users\\Bahadur\\Autograph\\backend\\test\\fixtures\\data"
+  }
+]

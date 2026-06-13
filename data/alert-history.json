@@ -1,0 +1,72 @@
+[
+  {
+    "id": "alert-dc0a3c1e3f4d",
+    "time": "2026-06-13T04:41:14.330Z",
+    "source": "Wazuh",
+    "attack": "Kerberoasting",
+    "mitre": "T1558.003",
+    "severity": "high",
+    "risk": 70,
+    "user": "svc-mssql@autograph.lab",
+    "target": "svc-mssql",
+    "source_ip": "::ffff:192.168.10.132",
+    "host": "SERVER01",
+    "event_id": 4769,
+    "evidence": [
+      "RC4 encrypted service ticket requested",
+      "Target account has SPN configured"
+    ],
+    "response": [
+      "Reset service account password",
+      "Disable RC4 Kerberos encryption",
+      "Review SPN ownership",
+      "Investigate source user session",
+      "Rotate credentials for exposed service account"
+    ],
+    "ingested_at": "2026-06-13T04:41:19.129Z",
+    "ingest_source": "webhook",
+    "last_webhook_at": "2026-06-13T04:41:19.129Z",
+    "detection": {
+      "sigma_matched": true,
+      "indicators": {
+        "kerberoasting": true,
+        "rc4_encryption": true,
+        "multiple_tgs": false,
+        "service_account_spn": true,
+        "event_4769": true
+      },
+      "multiple_tgs_count": 1,
+      "risk_breakdown": [
+        {
+          "factor": "kerberoasting",
+          "points": 35,
+          "description": "Kerberoasting alert — TGS requested for SPN-backed account"
+        },
+        {
+          "factor": "rc4_encryption",
+          "points": 20,
+          "description": "RC4 ticket encryption enables offline cracking"
+        },
+        {
+          "factor": "service_account_spn",
+          "points": 15,
+          "description": "Target account exposes Kerberos service principal (SPN)"
+        }
+      ]
+    },
+    "status": "open",
+    "contained_at": null,
+    "simulation_active": false,
+    "demo_step": 0,
+    "ai_status": null,
+    "ai_verdict": null,
+    "ai_headline": null,
+    "ai_confidence": null,
+    "ai_urgency": null,
+    "ai_actions": null,
+    "ai_action_details": null,
+    "ai_summary_model": null,
+    "ai_actions_model": null,
+    "ai_enriched_at": null
+  }
+]

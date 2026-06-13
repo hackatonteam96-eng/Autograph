@@ -4,23 +4,26 @@ const { asyncHandler } = require("../middleware/errorHandler");
 
 const router = express.Router();
 
-/** Blue team / Wazuh can ping this to verify reachability before POSTing alerts. */
 router.get("/webhook/wazuh", (_req, res) => {
   res.json({
     ok: true,
     service: "AuthGraph Wazuh webhook",
     method: "POST alerts to this URL",
     endpoint: "/api/webhook/wazuh",
+    filter: "ITDR Kerberoasting / Event 4769 / T1558.003 only — sshd and syslog ignored",
   });
 });
 
 router.post("/webhook/wazuh", asyncHandler((req, res) => {
   const preview = JSON.stringify(req.body)?.slice(0, 240) || "";
-  console.log(`[webhook] Wazuh alert received (${preview}${preview.length >= 240 ? "…" : ""})`);
+  console.log(`[webhook] Wazuh POST (${preview}${preview.length >= 240 ? "…" : ""})`);
 
   const result = dataStore.ingestWebhook(req.body);
+  if (result.ignored) {
+    return res.json(result);
+  }
   if (result.ok) {
-    console.log(`[webhook] Ingested kerberoast incident risk=${result.incident?.risk ?? "?"}`);
+    console.log(`[webhook] Kerberoasting incident risk=${result.incident?.risk ?? "?"}`);
   } else {
     console.warn(`[webhook] Ingest failed: ${result.error}`);
   }

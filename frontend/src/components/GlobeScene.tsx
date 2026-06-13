@@ -1,91 +1,208 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+
 import { Html, OrbitControls, Stars } from '@react-three/drei'
+
 import { useFrame, useLoader, useThree } from '@react-three/fiber'
+
 import * as THREE from 'three'
+
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 
+import { getFresnelMat } from './earth/getFresnelMat'
+
+
+
 export type GlobePin = {
+
   id: string
+
   label: string
+
   sub: string
+
   lon: number
+
   lat: number
+
   role: 'dc' | 'attacker' | 'asset'
+
 }
+
+
 
 export function latLonToVec3(lon: number, lat: number, r: number) {
+
   const phi = (90 - lat) * (Math.PI / 180)
+
   const theta = (lon + 180) * (Math.PI / 180)
+
   return new THREE.Vector3(
+
     -r * Math.sin(phi) * Math.cos(theta),
+
     r * Math.cos(phi),
+
     r * Math.sin(phi) * Math.sin(theta),
+
   )
+
 }
 
-function EarthMesh({
-  active,
+
+
+/** 3D-Earth core — Icosahedron layers + fresnel glow (SaraRasoulian/3D-Earth, MIT) */
+
+function Earth3D({
+
   contained,
+
   autoRotate,
+
 }: {
-  active: boolean
+
   contained: boolean
+
   autoRotate: boolean
+
 }) {
-  const group = useRef<THREE.Group>(null)
-  const clouds = useRef<THREE.Mesh>(null)
-  const aura = useRef<THREE.Mesh>(null)
-  const [earthMap, nightMap, cloudsMap] = useLoader(THREE.TextureLoader, [
-    '/models/earth/earth-albedo.jpg',
-    '/models/earth/earth-night_lights_modified.jpg',
-    '/models/earth/clouds-earth.jpg',
+
+  const earthMesh = useRef<THREE.Mesh>(null)
+
+  const lightsMesh = useRef<THREE.Mesh>(null)
+
+  const cloudsMesh = useRef<THREE.Mesh>(null)
+
+  const glowMesh = useRef<THREE.Mesh>(null)
+
+
+
+  const geometry = useMemo(() => new THREE.IcosahedronGeometry(1, 14), [])
+
+
+
+  const [earthMap, lightsMap, cloudsMap] = useLoader(THREE.TextureLoader, [
+
+    '/models/earth/earthmap.jpg',
+
+    '/models/earth/earth_lights.png',
+
+    '/models/earth/cloud_combined.jpg',
+
   ])
 
-  useEffect(() => {
-    for (const t of [earthMap, nightMap, cloudsMap]) t.colorSpace = THREE.SRGBColorSpace
-  }, [earthMap, nightMap, cloudsMap])
 
-  useFrame(({ clock }, dt) => {
-    if (autoRotate && group.current) group.current.rotation.y += dt * 0.04
-    if (autoRotate && clouds.current) clouds.current.rotation.y += dt * 0.025
-    if (aura.current) {
-      const pulse = active ? 0.05 + Math.sin(clock.elapsedTime * 0.8) * 0.015 : 0.03
-      ;(aura.current.material as THREE.MeshBasicMaterial).opacity = pulse
+
+  const fresnelMat = useMemo(() => getFresnelMat(), [])
+
+
+
+  useEffect(() => {
+
+    for (const t of [earthMap, lightsMap, cloudsMap]) {
+
+      t.colorSpace = THREE.SRGBColorSpace
+
+      t.anisotropy = 8
+
     }
+
+  }, [earthMap, lightsMap, cloudsMap])
+
+
+
+  useFrame((_, dt) => {
+
+    const s = dt * 60
+
+    if (autoRotate) {
+
+      if (earthMesh.current) earthMesh.current.rotation.y += 0.0019 * s
+
+      if (lightsMesh.current) lightsMesh.current.rotation.y += 0.0019 * s
+
+      if (cloudsMesh.current) cloudsMesh.current.rotation.y += 0.0026 * s
+
+      if (glowMesh.current) glowMesh.current.rotation.y += 0.002 * s
+
+    }
+
+
+
+    const rim = contained ? 0x2dd4a8 : 0x3abef9
+
+    fresnelMat.uniforms.color1.value.lerp(new THREE.Color(rim), 0.04)
+
   })
 
-  const emissive = contained ? '#1a9e7a' : active ? '#c04030' : '#1e3d60'
+
 
   return (
-    <group ref={group}>
-      <mesh>
-        <sphereGeometry args={[1, 72, 72]} />
+
+    <group rotation={[0, 0, (-23.4 * Math.PI) / 180]}>
+
+      <mesh ref={earthMesh} geometry={geometry}>
+
+        <meshPhongMaterial map={earthMap} />
+
+      </mesh>
+
+      <mesh ref={lightsMesh} geometry={geometry}>
+
+        <meshBasicMaterial map={lightsMap} blending={THREE.AdditiveBlending} />
+
+      </mesh>
+
+      <mesh ref={cloudsMesh} geometry={geometry} scale={1.003}>
+
         <meshStandardMaterial
-          map={earthMap}
-          emissiveMap={nightMap}
-          emissive={new THREE.Color(emissive)}
-          emissiveIntensity={active ? 0.5 : 0.14}
-          roughness={0.9}
-          metalness={0}
-        />
-      </mesh>
-      <mesh ref={clouds} scale={1.012}>
-        <sphereGeometry args={[1, 48, 48]} />
-        <meshPhongMaterial map={cloudsMap} transparent opacity={0.12} depthWrite={false} />
-      </mesh>
-      <mesh ref={aura} scale={1.06}>
-        <sphereGeometry args={[1, 32, 32]} />
-        <meshBasicMaterial
-          color={contained ? '#2dd4a8' : active ? '#ff5c5c' : '#3a7bd5'}
+
+          map={cloudsMap}
+
           transparent
-          opacity={0.04}
-          side={THREE.BackSide}
+
+          opacity={0.9}
+
+          blending={THREE.AdditiveBlending}
+
+          depthWrite={false}
+
         />
+
       </mesh>
+
+      <mesh ref={glowMesh} geometry={geometry} scale={1.01} material={fresnelMat} />
+
     </group>
+
   )
+
 }
 
+
+
+function Starfield({ autoRotate }: { autoRotate: boolean }) {
+
+  const ref = useRef<THREE.Group>(null)
+
+  useFrame((_, dt) => {
+
+    if (autoRotate && ref.current) ref.current.rotation.y -= 0.0002 * dt * 60
+
+  })
+
+  return (
+
+    <group ref={ref}>
+
+      <Stars radius={80} depth={50} count={5000} factor={4} saturation={0} fade speed={0.5} />
+
+    </group>
+
+  )
+
+}
+
+/** Curved arcs between correlated identity regions (attacker → DC → target) */
 function ThreatArc({
   active,
   contained,
@@ -97,148 +214,397 @@ function ThreatArc({
   from: THREE.Vector3
   to: THREE.Vector3
 }) {
-  const line = useMemo(() => {
-    const mid = from.clone().add(to).multiplyScalar(0.5).normalize().multiplyScalar(1.5)
+  const tubeRef = useRef<THREE.Mesh>(null)
+  const pulseRef = useRef<THREE.Mesh>(null)
+
+  const { curve, tubeGeo } = useMemo(() => {
+    const lift = 1.28 + from.distanceTo(to) * 0.18
+    const mid = from.clone().add(to).multiplyScalar(0.5).normalize().multiplyScalar(lift)
     const curve = new THREE.QuadraticBezierCurve3(from, mid, to)
-    const geom = new THREE.BufferGeometry().setFromPoints(curve.getPoints(80))
-    return new THREE.Line(geom, new THREE.LineBasicMaterial({ transparent: true, opacity: 0.2 }))
+    const tubeGeo = new THREE.TubeGeometry(curve, 80, 0.0035, 8, false)
+    return { curve, tubeGeo }
   }, [from, to])
 
   useFrame(({ clock }) => {
-    const mat = line.material as THREE.LineBasicMaterial
-    mat.color.set(contained ? '#2dd4a8' : '#ff5c5c')
-    mat.opacity = active ? 0.18 + Math.sin(clock.elapsedTime * 0.6) * 0.08 : 0.05
-  })
-
-  return <primitive object={line} />
-}
-
-function Pin({
-  pin,
-  selected,
-  active,
-  contained,
-  onSelect,
-}: {
-  pin: GlobePin
-  selected: boolean
-  active: boolean
-  contained: boolean
-  onSelect: (pin: GlobePin) => void
-}) {
-  const meshRef = useRef<THREE.Mesh>(null)
-  const orbitRef = useRef<THREE.Mesh>(null)
-  const pos = useMemo(() => latLonToVec3(pin.lon, pin.lat, 1.028), [pin.lon, pin.lat])
-
-  const color =
-    pin.role === 'attacker' && active && !contained ? '#ff5c5c'
-    : pin.role === 'dc' && active ? (contained ? '#2dd4a8' : '#ffb347')
-    : '#5ecfff'
-
-  const showOrbit = selected || (active && pin.role === 'attacker' && !contained)
-
-  useFrame(({ clock }) => {
-    if (orbitRef.current && showOrbit) {
-      orbitRef.current.rotation.z = clock.elapsedTime * 0.35
-      ;(orbitRef.current.material as THREE.MeshBasicMaterial).opacity = 0.35 + Math.sin(clock.elapsedTime * 0.5) * 0.1
+    const col = contained ? '#2dd4a8' : '#ff5c5c'
+    if (tubeRef.current) {
+      const m = tubeRef.current.material as THREE.MeshBasicMaterial
+      m.color.set(col)
+      m.opacity = active ? 0.5 + Math.sin(clock.elapsedTime * 2) * 0.12 : 0.12
     }
-    if (meshRef.current) {
-      meshRef.current.scale.setScalar(selected ? 1.25 : 1)
+    if (pulseRef.current && active) {
+      const t = (clock.elapsedTime * 0.4) % 1
+      pulseRef.current.position.copy(curve.getPoint(t))
+      pulseRef.current.scale.setScalar(0.018 + Math.sin(t * Math.PI) * 0.014)
+      ;(pulseRef.current.material as THREE.MeshBasicMaterial).color.set(col)
     }
   })
 
   return (
-    <group position={pos}>
-      {showOrbit && (
-        <mesh ref={orbitRef} rotation={[Math.PI / 2, 0, 0]}>
-          <ringGeometry args={[0.038, 0.042, 48]} />
-          <meshBasicMaterial color={color} transparent opacity={0.35} side={THREE.DoubleSide} />
-        </mesh>
-      )}
-      <mesh
-        ref={meshRef}
-        onClick={(e) => { e.stopPropagation(); onSelect(pin) }}
-        onPointerOver={() => { document.body.style.cursor = 'pointer' }}
-        onPointerOut={() => { document.body.style.cursor = 'default' }}
-      >
-        <sphereGeometry args={[0.02, 12, 12]} />
-        <meshBasicMaterial color={color} />
+    <group>
+      <mesh ref={tubeRef} geometry={tubeGeo}>
+        <meshBasicMaterial color="#ff5c5c" transparent toneMapped={false} />
       </mesh>
-      {selected && (
-        <Html distanceFactor={3.2} style={{ pointerEvents: 'none', transform: 'translate(-50%, -150%)' }}>
-          <div className={`globe-pin-label globe-pin-label--${pin.role}`}>{pin.label}</div>
-        </Html>
+      {active && (
+        <mesh ref={pulseRef}>
+          <sphereGeometry args={[1, 12, 12]} />
+          <meshBasicMaterial color="#ff5c5c" transparent toneMapped={false} />
+        </mesh>
       )}
     </group>
   )
 }
 
+function Pin({
+
+  pin,
+
+  selected,
+
+  hovered,
+
+  active,
+
+  contained,
+
+  onSelect,
+
+  onHover,
+
+}: {
+
+  pin: GlobePin
+
+  selected: boolean
+
+  hovered: boolean
+
+  active: boolean
+
+  contained: boolean
+
+  onSelect: (pin: GlobePin) => void
+
+  onHover: (id: string | null) => void
+
+}) {
+
+  const meshRef = useRef<THREE.Mesh>(null)
+
+  const pos = useMemo(() => latLonToVec3(pin.lon, pin.lat, 1.02), [pin.lon, pin.lat])
+
+  const normal = useMemo(() => pos.clone().normalize(), [pos])
+
+  const quat = useMemo(() => {
+
+    const q = new THREE.Quaternion()
+
+    q.setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal)
+
+    return q
+
+  }, [normal])
+
+
+
+  const color =
+
+    pin.role === 'attacker' && active && !contained ? '#ff5c5c'
+
+    : pin.role === 'dc' && active ? (contained ? '#2dd4a8' : '#ffb347')
+
+    : '#5ecfff'
+
+
+
+  useFrame(({ clock }) => {
+
+    if (meshRef.current) {
+
+      const base = selected ? 1.5 : hovered ? 1.2 : 1
+
+      const pulse = active && pin.role === 'attacker' ? 1 + Math.sin(clock.elapsedTime * 3) * 0.1 : 1
+
+      meshRef.current.scale.setScalar(base * pulse)
+
+    }
+
+  })
+
+
+
+  return (
+
+    <group position={pos} quaternion={quat}>
+
+      <mesh
+
+        ref={meshRef}
+
+        onClick={(e) => { e.stopPropagation(); onSelect(pin) }}
+
+        onPointerOver={(e) => { e.stopPropagation(); onHover(pin.id); document.body.style.cursor = 'pointer' }}
+
+        onPointerOut={() => { onHover(null); document.body.style.cursor = 'default' }}
+
+      >
+
+        <sphereGeometry args={[0.022, 16, 16]} />
+
+        <meshBasicMaterial color={color} toneMapped={false} />
+
+      </mesh>
+
+      {(selected || hovered) && (
+
+        <Html distanceFactor={3.2} style={{ pointerEvents: 'none', transform: 'translate(-50%, -160%)' }}>
+
+          <div className={`globe-pin-label globe-pin-label--${pin.role}`}>
+
+            <strong>{pin.label}</strong>
+
+            <span>{pin.sub}</span>
+
+          </div>
+
+        </Html>
+
+      )}
+
+    </group>
+
+  )
+
+}
+
+
+
+function CameraFocus({
+
+  focusPos,
+
+  controlsRef,
+
+  expanded,
+
+}: {
+
+  focusPos: THREE.Vector3 | null
+
+  controlsRef: React.RefObject<OrbitControlsImpl | null>
+
+  expanded: boolean
+
+}) {
+
+  const { camera } = useThree()
+
+  const targetCam = useRef(new THREE.Vector3())
+
+  const targetLook = useRef(new THREE.Vector3())
+
+  const animating = useRef(false)
+
+
+
+  useEffect(() => {
+
+    if (!focusPos || !expanded) return
+
+    const dir = focusPos.clone().normalize()
+
+    targetLook.current.copy(focusPos)
+
+    targetCam.current.copy(dir.multiplyScalar(2.0))
+
+    animating.current = true
+
+  }, [focusPos, expanded])
+
+
+
+  useFrame((_, dt) => {
+
+    if (!animating.current || !focusPos) return
+
+    camera.position.lerp(targetCam.current, dt * 2.5)
+
+    if (controlsRef.current) {
+
+      controlsRef.current.target.lerp(targetLook.current, dt * 3)
+
+      controlsRef.current.update()
+
+    }
+
+    if (camera.position.distanceTo(targetCam.current) < 0.03) animating.current = false
+
+  })
+
+
+
+  return null
+
+}
+
+
 
 export function GlobeScene({
+
   active,
+
   contained,
+
   pins,
+
   selectedId,
+
+  focusPinId,
+
   onSelectPin,
+
   autoRotate,
+
   expanded = false,
+
   resetToken = 0,
+
 }: {
+
   active: boolean
+
   contained: boolean
+
   pins: GlobePin[]
+
   selectedId: string | null
+
+  focusPinId?: string | null
+
   onSelectPin: (pin: GlobePin) => void
+
   autoRotate: boolean
+
   expanded?: boolean
+
   resetToken?: number
+
 }) {
+
   const controlsRef = useRef<OrbitControlsImpl>(null)
+
+  const [hoverId, setHoverId] = useState<string | null>(null)
+
+  const { camera } = useThree()
+
+
+
+  const focusPin = pins.find((p) => p.id === focusPinId)
+
+  const focusPos = focusPin ? latLonToVec3(focusPin.lon, focusPin.lat, 1.02) : null
+
   const attacker = pins.find((p) => p.role === 'attacker')
   const dc = pins.find((p) => p.role === 'dc')
   const asset = pins.find((p) => p.role === 'asset')
   const from = attacker ? latLonToVec3(attacker.lon, attacker.lat, 1.02) : null
   const toDc = dc ? latLonToVec3(dc.lon, dc.lat, 1.02) : null
   const toAsset = asset ? latLonToVec3(asset.lon, asset.lat, 1.02) : null
-  const { camera } = useThree()
 
   useEffect(() => {
-    const z = expanded ? 2.9 : 3.1
+
+    const z = expanded ? 3.55 : 3.25
+
     camera.position.set(0, 0, z)
+
     camera.lookAt(0, 0, 0)
+
     controlsRef.current?.reset()
+
   }, [resetToken, camera, expanded])
 
+
+
   return (
+
     <>
-      <ambientLight intensity={0.9} />
-      <directionalLight position={[5, 3, 5]} intensity={2.6} />
-      <pointLight position={[-4, -1, 3]} intensity={0.6} color="#5080ff" />
-      {active && <pointLight position={[0, 0, 2]} intensity={1.2} color={contained ? '#2dd4a8' : '#ff5c5c'} />}
-      <EarthMesh active={active} contained={contained} autoRotate={autoRotate} />
-      {active && from && toDc && <ThreatArc active={active} contained={contained} from={from} to={toDc} />}
-      {active && from && toAsset && !contained && <ThreatArc active={active} contained={contained} from={from} to={toAsset} />}
+
+      <color attach="background" args={['#000000']} />
+
+      <ambientLight intensity={0.08} />
+
+      <directionalLight intensity={2.0} color="#ffffff" position={[-2.2, 0.7, 1.6]} />
+
+
+
+      <Earth3D contained={contained} autoRotate={autoRotate} />
+
+      <Starfield autoRotate={autoRotate} />
+
+      {active && from && toDc && (
+        <ThreatArc active={active} contained={contained} from={from} to={toDc} />
+      )}
+      {active && from && toAsset && !contained && (
+        <ThreatArc active={active} contained={contained} from={from} to={toAsset} />
+      )}
+
       {pins.map((pin) => (
+
         <Pin
+
           key={pin.id}
+
           pin={pin}
+
           selected={pin.id === selectedId}
+
+          hovered={pin.id === hoverId}
+
           active={active}
+
           contained={contained}
+
           onSelect={onSelectPin}
+
+          onHover={setHoverId}
+
         />
+
       ))}
-      <Stars radius={80} depth={30} count={expanded ? 900 : 400} factor={2} saturation={0} fade speed={0.15} />
+
+
+
       <OrbitControls
+
         ref={controlsRef}
+
         enablePan={false}
+
         enableZoom={expanded}
+
         enableRotate
-        autoRotate={autoRotate}
-        autoRotateSpeed={0.3}
-        minDistance={1.9}
-        maxDistance={expanded ? 5 : 3.5}
+
+        autoRotate={false}
+
+        rotateSpeed={0.5}
+
+        minDistance={1.6}
+
+        maxDistance={expanded ? 6 : 4.5}
+
+        dampingFactor={0.05}
+
+        enableDamping
+
       />
+
+
+
+      <CameraFocus focusPos={focusPos} controlsRef={controlsRef} expanded={expanded} />
+
     </>
+
   )
+
 }
+
+

@@ -3,7 +3,7 @@
  * Joins Sigma matching, event parsing, and risk scoring into incident-ready alerts.
  */
 
-const { randomUUID } = require("crypto");
+const { randomUUID, createHash } = require("crypto");
 const { MITRE } = require("./constants");
 const { parseKerberosEvent, parseKerberosEvents } = require("./event_parser");
 const { detectKerberoasting, matchSigmaRule } = require("./sigma_matcher");
@@ -25,6 +25,17 @@ const DEFAULT_RESPONSE_ACTIONS = [
 function generateAlertId(prefix = "alert") {
   const suffix = randomUUID().split("-")[0];
   return `${prefix}-${suffix}`;
+}
+
+/**
+ * Deterministic id from incident fingerprint — survives reload/re-ingest.
+ * @param {Array<string|number|undefined>} parts
+ * @returns {string}
+ */
+function stableAlertId(parts) {
+  const seed = parts.map((p) => String(p ?? "").toLowerCase()).join("|");
+  if (!seed.replace(/\|/g, "")) return generateAlertId();
+  return `alert-${createHash("sha256").update(seed).digest("hex").slice(0, 12)}`;
 }
 
 /**
@@ -73,7 +84,7 @@ function buildAlertFromEvents(rawEvents, options = {}) {
   );
 
   return {
-    id: generateAlertId(),
+    id: stableAlertId([target, primary.user, primary.host, String(primary.event_id)]),
     time: primary.time,
     source: options.source || "Wazuh",
     attack: "Kerberoasting",
@@ -123,14 +134,16 @@ function correlateAlert(rawAlert, options = {}) {
   const target = String(rawAlert.target || detection?.primary?.target || "unknown").toLowerCase();
   const user = String(rawAlert.user || detection?.source_user || detection?.primary?.user || "unknown").toLowerCase();
 
-  const indicators = detection
+  const inferred = inferIndicatorsFromAlert(rawAlert);
+
+  const indicators = detection?.is_kerberoasting
     ? {
-        kerberoasting: detection.is_kerberoasting,
+        kerberoasting: true,
         rc4_encryption: detection.indicators.rc4_encryption,
         multiple_tgs: detection.indicators.multiple_tgs,
         service_account_spn: detection.indicators.service_account_spn,
       }
-    : inferIndicatorsFromAlert(rawAlert);
+    : inferred;
 
   const scored = scoreFromDetection(indicators, target, attackPath);
 
@@ -165,9 +178,9 @@ function correlateAlert(rawAlert, options = {}) {
     evidence,
     response: Array.isArray(rawAlert.response) ? rawAlert.response : [...DEFAULT_RESPONSE_ACTIONS],
     detection: {
-      sigma_matched: detection?.is_kerberoasting ?? matchSigmaRule(rawAlert).matched,
+      sigma_matched: detection?.is_kerberoasting || inferred.kerberoasting || matchSigmaRule(rawAlert).matched,
       indicators,
-      multiple_tgs_count: detection?.multiple_tgs_count ?? 0,
+      multiple_tgs_count: detection?.multiple_tgs_count ?? (inferred.multiple_tgs ? 3 : 0),
       risk_breakdown: scored.breakdown,
       reason: scored.reason,
     },
@@ -222,7 +235,7 @@ function processWazuhPayload(payload, attackPath = null) {
   }
 
   if (results.length === 0) {
-    return correlateAlerts(items.filter((i) => i.attack || i.event_id), attackPath);
+    return [];
   }
 
   return results;
@@ -251,15 +264,23 @@ function inferIndicatorsFromAlert(alert) {
 function explainAlert(alert) {
   const correlated = correlateAlert(alert);
   const sigmaReasons = [];
+  const indicators = correlated.detection?.indicators || {};
+  const matched =
+    correlated.detection?.sigma_matched ||
+    indicators.kerberoasting ||
+    alert.attack === "Kerberoasting";
 
-  if (correlated.detection?.sigma_matched) {
+  if (matched) {
     sigmaReasons.push("Sigma rule authgraph-kerberoasting-4769 matched");
     sigmaReasons.push("Event ID 4769 — Kerberos service ticket operation");
-    if (correlated.detection.indicators?.rc4_encryption) {
+    if (indicators.rc4_encryption) {
       sigmaReasons.push("RC4 TicketEncryptionType (offline crackable)");
     }
-    if (correlated.detection.indicators?.multiple_tgs) {
-      sigmaReasons.push(`Multiple TGS requests (${correlated.detection.multiple_tgs_count}+)`);
+    if (indicators.multiple_tgs) {
+      sigmaReasons.push(`Multiple TGS requests (${correlated.detection?.multiple_tgs_count || 3}+)`);
+    }
+    if (indicators.service_account_spn) {
+      sigmaReasons.push("Target service account exposes Kerberos SPN");
     }
   }
 
@@ -268,11 +289,14 @@ function explainAlert(alert) {
     sigma: sigmaReasons,
     risk_factors: correlated.detection?.risk_breakdown || [],
     evidence: correlated.evidence,
+    mitre: correlated.mitre,
+    confidence: matched ? "high" : "medium",
   };
 }
 
 module.exports = {
   generateAlertId,
+  stableAlertId,
   buildAlertFromEvents,
   correlateAlert,
   correlateAlerts,

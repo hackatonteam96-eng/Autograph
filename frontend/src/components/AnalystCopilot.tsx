@@ -1,43 +1,30 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import { PaperPlaneTilt, Cpu, CircleNotch } from '@phosphor-icons/react'
 import { api } from '../api/client'
+import AriaMessageContent from './AriaMessageContent'
 
 type Message = {
   role: 'user' | 'assistant'
   text: string
   ts: string
+  model?: string
 }
 
-const QUICK = [
-  { label: 'Why critical?', prompt: 'Why is this incident rated critical risk?' },
-  { label: 'Contain first?', prompt: 'What is the highest-priority containment action right now?' },
-  { label: 'Explain path', prompt: 'Walk me through the exact attack path from lowpriv.user to Domain Sensitive Assets.' },
-  { label: 'Blast radius', prompt: 'What systems are at risk if svc-sql is fully compromised?' },
-]
-
-function useTypewriter(text: string, active: boolean) {
-  const [displayed, setDisplayed] = useState('')
-
-  useEffect(() => {
-    if (!active) { setDisplayed(text); return }
-    setDisplayed('')
-    let i = 0
-    let raf = 0
-    const tick = () => {
-      i++
-      setDisplayed(text.slice(0, i))
-      if (i < text.length) raf = requestAnimationFrame(tick)
-    }
-    raf = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(raf)
-  }, [text, active])
-
-  return displayed
+function buildQuickPrompts(user?: string, target?: string) {
+  const u = user ?? 'source user'
+  const t = target ?? 'service account'
+  return [
+    { label: 'Why critical?', prompt: 'Why is this incident rated critical? Walk me through the risk factors.' },
+    { label: 'Contain first?', prompt: 'What is the single highest-priority containment action right now, who owns it, and why?' },
+    { label: 'Attack path', prompt: `Walk the attack path step-by-step from ${u} to domain sensitive assets.` },
+    { label: 'Blast radius', prompt: `If ${t} is fully compromised, what systems and identities are exposed?` },
+    { label: 'Executive brief', prompt: 'Give me a 2-sentence executive summary for leadership — no jargon.' },
+    { label: 'False positive?', prompt: 'What evidence would downgrade this from critical? What should I verify first?' },
+  ]
 }
 
-function AssistantBubble({ msg, animate }: { msg: Message; animate: boolean }) {
-  const displayed = useTypewriter(msg.text, animate)
+function AssistantBubble({ msg }: { msg: Message }) {
   return (
     <motion.div
       className="aria-msg aria-msg--assistant"
@@ -47,8 +34,12 @@ function AssistantBubble({ msg, animate }: { msg: Message; animate: boolean }) {
     >
       <div className="aria-msg__avatar"><Cpu size={14} weight="duotone" /></div>
       <div className="aria-msg__body">
-        <span className="aria-msg__name">ARIA<span className="aria-msg__ts">{msg.ts}</span></span>
-        <p>{animate ? displayed : msg.text}</p>
+        <span className="aria-msg__name">
+          ARIA
+          {msg.model && <em className="aria-msg__model">{msg.model.includes('v4-pro') ? 'v4-pro' : 'v4-flash'}</em>}
+          <span className="aria-msg__ts">{msg.ts}</span>
+        </span>
+        <AriaMessageContent text={msg.text} />
       </div>
     </motion.div>
   )
@@ -59,34 +50,69 @@ export default function AnalystCopilot({
   disabled,
   compact = false,
   viewContext,
+  incidentHeadline,
+  incidentVerdict,
+  incidentUser,
+  incidentTarget,
+  incidentRisk,
+  autoAsk,
+  onAutoAskHandled,
 }: {
   incidentId?: string
   disabled?: boolean
   compact?: boolean
   viewContext?: string
+  incidentHeadline?: string | null
+  incidentVerdict?: string | null
+  incidentUser?: string
+  incidentTarget?: string
+  incidentRisk?: number
+  autoAsk?: string | null
+  onAutoAskHandled?: () => void
 }) {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
-  const [lastAssistantIdx, setLastAssistantIdx] = useState(-1)
+  const [, setLastAssistantIdx] = useState(-1)
   const [modelLabel, setModelLabel] = useState('deepseek-v4-flash')
   const endRef = useRef<HTMLDivElement>(null)
-  const seeded = useRef(false)
+  const seededFor = useRef<string | null>(null)
+
+  const quickPrompts = useMemo(
+    () => buildQuickPrompts(incidentUser, incidentTarget),
+    [incidentUser, incidentTarget],
+  )
 
   useEffect(() => {
-    if (disabled || seeded.current) return
-    seeded.current = true
+    if (disabled || !incidentId) return
+    if (seededFor.current === incidentId) return
+    seededFor.current = incidentId
+
+    const seedText = incidentHeadline
+      ? `${incidentHeadline}${incidentRisk ? ` · Risk ${incidentRisk}/100.` : '.'} Ask me about the path, blast radius, or what to contain first.`
+      : incidentVerdict
+        ? `${incidentVerdict.slice(0, 220)}${incidentVerdict.length > 220 ? '…' : ''} What do you need?`
+        : `Live Kerberoasting on ${incidentTarget ?? 'target'} from ${incidentUser ?? 'source user'}. I have full incident context — path, evidence, containment.`
+
     setMessages([{
       role: 'assistant',
       ts: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      text: "ARIA here. Incident is live — ask me anything about the threat, path, or what to contain first.",
+      text: seedText,
+      model: 'deepseek-v4-flash',
     }])
     setLastAssistantIdx(0)
-  }, [disabled])
+  }, [disabled, incidentId, incidentHeadline, incidentVerdict, incidentUser, incidentTarget, incidentRisk])
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, loading])
+
+  useEffect(() => {
+    if (!autoAsk?.trim() || disabled || loading) return
+    onAutoAskHandled?.()
+    ask(autoAsk)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoAsk])
 
   async function ask(text: string) {
     if (!text.trim() || loading || disabled) return
@@ -105,20 +131,31 @@ export default function AnalystCopilot({
     try {
       const data = await api.aiChat(incidentId, text, history, viewContext)
       const reply = data.reply || 'Signal lost — check backend.'
+      const usedModel = data.model || 'deepseek-v4-flash'
       if (data.model) {
-        setModelLabel(data.model.includes('pro') ? 'deepseek-v4-pro' : 'deepseek-v4-flash')
+        setModelLabel(data.model.includes('v4-pro') ? 'deepseek-v4-pro' : 'deepseek-v4-flash')
       }
       setMessages((m) => {
-        const updated = [...m, { role: 'assistant' as const, text: reply, ts: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }]
+        const updated = [...m, {
+          role: 'assistant' as const,
+          text: reply,
+          ts: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          model: usedModel,
+        }]
         setLastAssistantIdx(updated.length - 1)
         return updated
       })
     } catch (err) {
       const timedOut = err instanceof DOMException && err.name === 'TimeoutError'
-      const text = timedOut
-        ? 'That one needed deep reasoning and took too long. Try a more specific question.'
-        : 'Lost connection to ARIA. Reconnect backend and try again.'
-      setMessages((m) => [...m, { role: 'assistant', text, ts: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }])
+      const msg = err instanceof Error ? err.message : 'Unknown error'
+      const errText = timedOut
+        ? 'Deep reasoning took too long. Try a narrower question — e.g. "what to contain first?"'
+        : msg.includes('404') || msg.includes('Incident')
+          ? 'Incident context changed — ask again (backend refreshed).'
+          : msg.includes('Failed to fetch') || msg.includes('NetworkError')
+            ? 'Cannot reach backend — confirm API is running on port 8787.'
+            : `ARIA error: ${msg}`
+      setMessages((m) => [...m, { role: 'assistant', text: errText, ts: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }])
     } finally {
       setLoading(false)
     }
@@ -142,7 +179,7 @@ export default function AnalystCopilot({
         <AnimatePresence initial={false}>
           {messages.map((msg, i) =>
             msg.role === 'assistant' ? (
-              <AssistantBubble key={`${msg.ts}-${i}`} msg={msg} animate={i === lastAssistantIdx} />
+              <AssistantBubble key={`${msg.ts}-${i}`} msg={msg} />
             ) : (
               <motion.div
                 key={`${msg.ts}-${i}`}
@@ -163,7 +200,7 @@ export default function AnalystCopilot({
           <div className="aria-msg aria-msg--assistant aria-msg--thinking">
             <div className="aria-msg__avatar"><Cpu size={14} weight="duotone" /></div>
             <div className="aria-msg__body">
-              <span className="aria-msg__name">ARIA</span>
+              <span className="aria-msg__name">ARIA · reasoning</span>
               <div className="aria-typing"><span /><span /><span /></div>
             </div>
           </div>
@@ -172,7 +209,7 @@ export default function AnalystCopilot({
       </div>
 
       <div className="aria__quick">
-        {QUICK.map((q) => (
+        {quickPrompts.map((q) => (
           <button key={q.label} type="button" className="aria__chip" onClick={() => ask(q.prompt)} disabled={disabled || loading}>
             {q.label}
           </button>
@@ -183,7 +220,7 @@ export default function AnalystCopilot({
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder={disabled ? 'Trigger an incident first…' : 'Ask ARIA anything…'}
+          placeholder={disabled ? 'Trigger an incident first…' : 'Ask ARIA — path, blast radius, containment…'}
           disabled={disabled || loading}
           autoComplete="off"
         />

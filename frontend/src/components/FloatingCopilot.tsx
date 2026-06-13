@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import { Cpu, X } from '@phosphor-icons/react'
 import AnalystCopilot from './AnalystCopilot'
@@ -7,17 +7,41 @@ export default function FloatingCopilot({
   incidentId,
   disabled,
   hasIncident,
+  hideFab = false,
   viewContext,
+  incidentHeadline,
+  incidentVerdict,
+  incidentUser,
+  incidentTarget,
+  incidentRisk,
+  pendingPrompt,
+  onPromptHandled,
 }: {
   incidentId?: string
   disabled?: boolean
   hasIncident?: boolean
+  hideFab?: boolean
   viewContext?: string
+  incidentHeadline?: string | null
+  incidentVerdict?: string | null
+  incidentUser?: string
+  incidentTarget?: string
+  incidentRisk?: number
+  pendingPrompt?: { text: string; key: number } | null
+  onPromptHandled?: () => void
 }) {
   const [open, setOpen] = useState(false)
+  const [autoAsk, setAutoAsk] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!pendingPrompt?.text) return
+    setOpen(true)
+    setAutoAsk(pendingPrompt.text)
+    onPromptHandled?.()
+  }, [pendingPrompt, onPromptHandled])
 
   return (
-    <div className="float-copilot">
+    <div className={`float-copilot ${hideFab ? 'float-copilot--hidden' : ''}`}>
       <AnimatePresence>
         {open && (
           <motion.div
@@ -35,7 +59,19 @@ export default function FloatingCopilot({
             >
               <X size={14} weight="bold" />
             </button>
-            <AnalystCopilot incidentId={incidentId} disabled={disabled} compact viewContext={viewContext} />
+            <AnalystCopilot
+              incidentId={incidentId}
+              disabled={disabled}
+              compact
+              viewContext={viewContext}
+              incidentHeadline={incidentHeadline}
+              incidentVerdict={incidentVerdict}
+              incidentUser={incidentUser}
+              incidentTarget={incidentTarget}
+              incidentRisk={incidentRisk}
+              autoAsk={autoAsk}
+              onAutoAskHandled={() => setAutoAsk(null)}
+            />
           </motion.div>
         )}
       </AnimatePresence>

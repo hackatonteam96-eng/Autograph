@@ -36,6 +36,30 @@ function isRc4Encryption(encryptionType) {
   return RC4_ENCRYPTION_TYPES.has(normalized) || RC4_ENCRYPTION_TYPES.has(String(encryptionType));
 }
 
+/** AES128/256 — strong, should not trigger Yara weak-crypto rule */
+const STRONG_KERBEROS_ETYPES = new Set([0x11, 0x12, 17, 18]);
+
+function encryptionTypeNumeric(encryptionType) {
+  if (encryptionType === undefined || encryptionType === null || encryptionType === "") return null;
+  const normalized = normalizeEncryptionType(encryptionType);
+  if (normalized.startsWith("0x")) {
+    const n = parseInt(normalized, 16);
+    return Number.isNaN(n) ? null : n;
+  }
+  const n = Number(normalized);
+  return Number.isNaN(n) ? null : n;
+}
+
+/** Yara/lab rule: ticket encryption 0x07 < etype (weak / RC4 / legacy) */
+function isWeakKerberosEncryption(encryptionType) {
+  if (isRc4Encryption(encryptionType)) return true;
+  const num = encryptionTypeNumeric(encryptionType);
+  if (num === null) return false;
+  if (num <= 0x07) return false;
+  if (STRONG_KERBEROS_ETYPES.has(num)) return false;
+  return num > 0x07;
+}
+
 function extractServiceAccount(serviceName) {
   if (!serviceName) return "";
   const name = String(serviceName).trim();
@@ -156,6 +180,7 @@ function parseKerberosEvent(raw) {
     service_name: serviceName,
     encryption_type: encryptionType,
     is_rc4: isRc4Encryption(encryptionType),
+    is_weak_encryption: isWeakKerberosEncryption(encryptionType),
     source_ip: sourceIp,
     host,
     status,
@@ -180,6 +205,8 @@ module.exports = {
   parseKerberosEvents,
   normalizeEncryptionType,
   isRc4Encryption,
+  isWeakKerberosEncryption,
+  encryptionTypeNumeric,
   extractServiceAccount,
   isKrbtgtService,
 };

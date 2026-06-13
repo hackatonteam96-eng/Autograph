@@ -1,0 +1,738 @@
+[
+  {
+    "id": "log-1781326684676-fn51bh",
+    "ts": "2026-06-13T04:58:04.676Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Not Kerberoasting — need Event 4769, T1558, or weak ticket encryption (etype > 0x07)",
+    "kind": "unknown",
+    "preview": "{\"rule\":\"windows command prompt started by an abnormal process\",\"agent\":\"WIN01\"}"
+  },
+  {
+    "id": "log-1781326572575-v1usfs",
+    "ts": "2026-06-13T04:56:12.575Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Not Kerberoasting — need Event 4769, T1558, or weak ticket encryption (etype > 0x07)",
+    "kind": "unknown",
+    "preview": "{\"rule\":\"windows command prompt started by an abnormal process\",\"agent\":\"SERVER01\"}"
+  },
+  {
+    "id": "log-1781326515240-hn305n",
+    "ts": "2026-06-13T04:55:15.240Z",
+    "level": "system",
+    "message": "Dashboard reset — placeholder and simulation state cleared"
+  },
+  {
+    "id": "log-1781326406929-ki6uie",
+    "ts": "2026-06-13T04:53:26.929Z",
+    "level": "action",
+    "message": "Containment executed on alert-dc0a3c1e3f4d",
+    "incident_id": "alert-dc0a3c1e3f4d",
+    "actions": 1,
+    "mode": "simulated",
+    "risk_before": 70,
+    "risk_after": 32
+  },
+  {
+    "id": "log-1781326406927-rf9ndv",
+    "ts": "2026-06-13T04:53:26.927Z",
+    "level": "action",
+    "message": "Playbook dry-run: Reset service account password",
+    "incident_id": "alert-dc0a3c1e3f4d",
+    "playbook_id": "rotate_service_password",
+    "command": "Set-ADAccountPassword -Identity 'svc-mssql' -Reset -PassThru | Set-ADUser -ChangePasswordAtLogon $true",
+    "status": "simulated"
+  },
+  {
+    "id": "log-1781326323438-6zdfu1",
+    "ts": "2026-06-13T04:52:03.438Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Not Kerberoasting — need Event 4769, T1558, or weak ticket encryption (etype > 0x07)",
+    "kind": "unknown",
+    "preview": "{\"rule\":\"software protection service scheduled successfully.\",\"agent\":\"SERVER01\"}"
+  },
+  {
+    "id": "log-1781326319762-n29pnj",
+    "ts": "2026-06-13T04:51:59.762Z",
+    "level": "system",
+    "message": "Dashboard reset — placeholder and simulation state cleared"
+  },
+  {
+    "id": "log-1781326288383-f9vow1",
+    "ts": "2026-06-13T04:51:28.383Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Not Kerberoasting — need Event 4769, T1558, or weak ticket encryption (etype > 0x07)",
+    "kind": "unknown",
+    "preview": "{\"rule\":\"windows defender: antimalware platform is running and in a healthy state\",\"agent\":\"SERVER01\"}"
+  },
+  {
+    "id": "log-1781326279603-u8kee5",
+    "ts": "2026-06-13T04:51:19.603Z",
+    "level": "action",
+    "message": "Containment executed on alert-dc0a3c1e3f4d",
+    "incident_id": "alert-dc0a3c1e3f4d",
+    "actions": 1,
+    "mode": "simulated",
+    "risk_before": 70,
+    "risk_after": 32
+  },
+  {
+    "id": "log-1781326279602-5w9xmu",
+    "ts": "2026-06-13T04:51:19.602Z",
+    "level": "action",
+    "message": "Playbook dry-run: Reset service account password",
+    "incident_id": "alert-dc0a3c1e3f4d",
+    "playbook_id": "rotate_service_password",
+    "command": "Set-ADAccountPassword -Identity 'svc-mssql' -Reset -PassThru | Set-ADUser -ChangePasswordAtLogon $true",
+    "status": "simulated"
+  },
+  {
+    "id": "log-1781326057705-z05zab",
+    "ts": "2026-06-13T04:47:37.705Z",
+    "level": "system",
+    "message": "Dashboard reset — placeholder and simulation state cleared"
+  },
+  {
+    "id": "log-1781326052821-epxkjb",
+    "ts": "2026-06-13T04:47:32.821Z",
+    "level": "system",
+    "message": "Dashboard reset — placeholder and simulation state cleared"
+  },
+  {
+    "id": "log-1781326049862-roheqm",
+    "ts": "2026-06-13T04:47:29.862Z",
+    "level": "system",
+    "message": "Dashboard reset — placeholder and simulation state cleared"
+  },
+  {
+    "id": "log-1781325686932-7igzpk",
+    "ts": "2026-06-13T04:41:26.932Z",
+    "level": "ai",
+    "message": "ARIA enriched incident alert-dc0a3c1e3f4d",
+    "incident_id": "alert-dc0a3c1e3f4d",
+    "headline": "Kerberoasting: svc-mssql@autograph.lab targets svc-mssql on SERVER01",
+    "actions": 4
+  },
+  {
+    "id": "log-1781325679134-6rfdon",
+    "ts": "2026-06-13T04:41:19.134Z",
+    "level": "webhook",
+    "message": "Webhook update for existing incident alert-dc0a3c1e3f4d",
+    "incident_id": "alert-dc0a3c1e3f4d",
+    "user": "svc-mssql@autograph.lab",
+    "target": "svc-mssql",
+    "risk": 70,
+    "host": "SERVER01",
+    "is_new": false
+  },
+  {
+    "id": "log-1781325654979-r2aani",
+    "ts": "2026-06-13T04:40:54.979Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Not Kerberoasting — need Event 4769, T1558, or weak ticket encryption (etype > 0x07)",
+    "kind": "unknown",
+    "preview": "{\"rule\":\"windows user logoff\",\"agent\":\"WIN01\"}"
+  },
+  {
+    "id": "log-1781325654929-qlm9vz",
+    "ts": "2026-06-13T04:40:54.929Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Not Kerberoasting — need Event 4769, T1558, or weak ticket encryption (etype > 0x07)",
+    "kind": "unknown",
+    "preview": "{\"rule\":\"windows logon success\",\"agent\":\"WIN01\"}"
+  },
+  {
+    "id": "log-1781325616968-y18tzi",
+    "ts": "2026-06-13T04:40:16.968Z",
+    "level": "action",
+    "message": "Containment executed on alert-dc0a3c1e3f4d",
+    "incident_id": "alert-dc0a3c1e3f4d",
+    "actions": 1,
+    "mode": "simulated",
+    "risk_before": 70,
+    "risk_after": 32
+  },
+  {
+    "id": "log-1781325616966-rapj8u",
+    "ts": "2026-06-13T04:40:16.966Z",
+    "level": "action",
+    "message": "Playbook dry-run: Reset service account password",
+    "incident_id": "alert-dc0a3c1e3f4d",
+    "playbook_id": "rotate_service_password",
+    "command": "Set-ADAccountPassword -Identity 'svc-mssql' -Reset -PassThru | Set-ADUser -ChangePasswordAtLogon $true",
+    "status": "simulated"
+  },
+  {
+    "id": "log-1781325230251-es0efa",
+    "ts": "2026-06-13T04:33:50.251Z",
+    "level": "system",
+    "message": "Re-analyzing live Wazuh alert with ARIA",
+    "incident_id": "alert-dc0a3c1e3f4d",
+    "user": "svc-mssql@autograph.lab",
+    "target": "svc-mssql"
+  },
+  {
+    "id": "log-1781325227356-jcpw6s",
+    "ts": "2026-06-13T04:33:47.356Z",
+    "level": "system",
+    "message": "Dashboard reset — placeholder and simulation state cleared"
+  },
+  {
+    "id": "log-1781324523460-7zs9sk",
+    "ts": "2026-06-13T04:22:03.460Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Not Kerberoasting — need Event 4769, T1558, or weak ticket encryption (etype > 0x07)",
+    "kind": "unknown",
+    "preview": "{\"rule\":\"software protection service scheduled successfully.\",\"agent\":\"SERVER01\"}"
+  },
+  {
+    "id": "log-1781323084942-tnkqoa",
+    "ts": "2026-06-13T03:58:04.942Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Not Kerberoasting — need Event 4769, T1558, or weak ticket encryption (etype > 0x07)",
+    "kind": "unknown",
+    "preview": "{\"rule\":\"windows command prompt started by an abnormal process\",\"agent\":\"WIN01\"}"
+  },
+  {
+    "id": "log-1781322972860-3medyc",
+    "ts": "2026-06-13T03:56:12.860Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Not Kerberoasting — need Event 4769, T1558, or weak ticket encryption (etype > 0x07)",
+    "kind": "unknown",
+    "preview": "{\"rule\":\"windows command prompt started by an abnormal process\",\"agent\":\"SERVER01\"}"
+  },
+  {
+    "id": "log-1781322723709-pfn13w",
+    "ts": "2026-06-13T03:52:03.709Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Not Kerberoasting — need Event 4769, T1558, or weak ticket encryption (etype > 0x07)",
+    "kind": "unknown",
+    "preview": "{\"rule\":\"software protection service scheduled successfully.\",\"agent\":\"SERVER01\"}"
+  },
+  {
+    "id": "log-1781322688646-pdqjfu",
+    "ts": "2026-06-13T03:51:28.646Z",
+    "level": "webhook",
+    "message": "Ignored (non-ITDR): Not Kerberoasting — need Event 4769, T1558, or weak ticket encryption (etype > 0x07)",
+    "kind": "unknown",
+    "preview": "{\"rule\":\"windows defender: antimalware platform is running and in a healthy state\",\"agent\":\"SERVER01\"}"
+  },
+  {
+    "id": "log-1781322681587-3bt2hr",
+    "ts": "2026-06-13T03:51:21.587Z",
+    "level": "webhook",
+    "message": "Webhook POST /api/webhook/wazuh → 400",
+    "ms": 3,
+    "status": 400
+  },
+  {
+    "id": "log-1781322681585-f31gvi",
+    "ts": "2026-06-13T03:51:21.585Z",
+    "level": "warn",
+    "message": "Webhook accepted but could not parse Kerberoasting alert",
+    "preview": "{\"rule\":\"windows logon success\",\"event_id\":4769}"
+  },
+  {
+    "id": "log-1781322681578-nyr3li",
+    "ts": "2026-06-13T03:51:21.578Z",
+    "level": "webhook",
+    "message": "Webhook POST /api/webhook/wazuh → 400",
+    "ms": 3,
+    "status": 400
+  },
+  {
+    "id": "log-1781322681576-qkvip5",
+    "ts": "2026-06-13T03:51:21.576Z",
+    "level": "warn",
+    "message": "Webhook accepted but could not parse Kerberoasting alert",
+    "preview": "{\"rule\":\"windows logon success\",\"event_id\":4769,\"etype\":\"0x12\",\"agent\":\"SERVER01\"}"
+  },
+  {
+    "id": "log-1781322681528-eivt3d",
+    "ts": "2026-06-13T03:51:21.528Z",
+    "level": "webhook",
+    "message": "Webhook POST /api/webhook/wazuh → 400",
+    "ms": 4,
+    "status": 400
+  },
+  {
+    "id": "log-1781322681526-tn8s98",
+    "ts": "2026-06-13T03:51:21.526Z",
+    "level": "warn",
+    "message": "Webhook accepted but could not parse Kerberoasting alert",
+    "preview": "{\"rule\":\"windows logon success\",\"event_id\":4769}"
+  },
+  {
+    "id": "log-1781322681518-bb74ds",
+    "ts": "2026-06-13T03:51:21.518Z",
+    "level": "webhook",
+    "message": "Webhook POST /api/webhook/wazuh → 400",
+    "ms": 8,
+    "status": 400
+  },
+  {
+    "id": "log-1781322681515-onuxhv",
+    "ts": "2026-06-13T03:51:21.515Z",
+    "level": "warn",
+    "message": "Webhook accepted but could not parse Kerberoasting alert",
+    "preview": "{\"rule\":\"windows logon success\",\"event_id\":4769,\"etype\":\"0x12\",\"agent\":\"SERVER01\"}"
+  },
+  {
+    "id": "log-1781320921940-4i8gg0",
+    "ts": "2026-06-13T03:22:01.940Z",
+    "level": "webhook",
+    "message": "Webhook POST /api/webhook/wazuh → 200",
+    "ms": 1,
+    "status": 200
+  },
+  {
+    "id": "log-1781320921939-8hxgcu",
+    "ts": "2026-06-13T03:22:01.939Z",
+    "level": "webhook",
+    "message": "Ignored Wazuh/Yara alert: Not Kerberoasting — need Event 4769, T1558, or weak ticket encryption (etype > 0x07)",
+    "kind": "unknown",
+    "preview": "{\"rule\":\"software protection service scheduled successfully.\",\"agent\":\"SERVER01\"}"
+  },
+  {
+    "id": "log-1781320890141-m7bkkn",
+    "ts": "2026-06-13T03:21:30.141Z",
+    "level": "ai",
+    "message": "ARIA enriched incident alert-dc0a3c1e3f4d",
+    "incident_id": "alert-dc0a3c1e3f4d",
+    "headline": "Kerberoasting: svc-mssql@autograph.lab targets svc-mssql SPN",
+    "actions": 4
+  },
+  {
+    "id": "log-1781320879876-hcr0of",
+    "ts": "2026-06-13T03:21:19.876Z",
+    "level": "webhook",
+    "message": "Webhook POST /api/webhook/wazuh → 200",
+    "ms": 9,
+    "status": 200
+  },
+  {
+    "id": "log-1781320879873-24m6sw",
+    "ts": "2026-06-13T03:21:19.873Z",
+    "level": "alert",
+    "message": "New Kerberoasting alert from Wazuh/Yara webhook",
+    "incident_id": "alert-dc0a3c1e3f4d",
+    "user": "svc-mssql@autograph.lab",
+    "target": "svc-mssql",
+    "risk": 70,
+    "host": "SERVER01",
+    "is_new": true
+  },
+  {
+    "id": "log-1781320661971-56kj8u",
+    "ts": "2026-06-13T03:17:41.971Z",
+    "level": "system",
+    "message": "Simulation POST /api/simulate/reset → 200",
+    "ms": 1,
+    "status": 200
+  },
+  {
+    "id": "log-1781320661970-5feakb",
+    "ts": "2026-06-13T03:17:41.970Z",
+    "level": "system",
+    "message": "Demo reset — simulation and containment state cleared"
+  },
+  {
+    "id": "log-1781320661768-n7krna",
+    "ts": "2026-06-13T03:17:41.768Z",
+    "level": "system",
+    "message": "Simulation POST /api/simulate/reset → 200",
+    "ms": 2,
+    "status": 200
+  },
+  {
+    "id": "log-1781320661766-8zcial",
+    "ts": "2026-06-13T03:17:41.766Z",
+    "level": "system",
+    "message": "Demo reset — simulation and containment state cleared"
+  },
+  {
+    "id": "log-1781320661572-ubanoh",
+    "ts": "2026-06-13T03:17:41.572Z",
+    "level": "system",
+    "message": "Simulation POST /api/simulate/reset → 200",
+    "ms": 1,
+    "status": 200
+  },
+  {
+    "id": "log-1781320661571-tz3o19",
+    "ts": "2026-06-13T03:17:41.571Z",
+    "level": "system",
+    "message": "Demo reset — simulation and containment state cleared"
+  },
+  {
+    "id": "log-1781320660689-i2tlvx",
+    "ts": "2026-06-13T03:17:40.689Z",
+    "level": "system",
+    "message": "Simulation POST /api/simulate/reset → 200",
+    "ms": 2,
+    "status": 200
+  },
+  {
+    "id": "log-1781320660687-8orq25",
+    "ts": "2026-06-13T03:17:40.687Z",
+    "level": "system",
+    "message": "Demo reset — simulation and containment state cleared"
+  },
+  {
+    "id": "log-1781320641464-g7q27k",
+    "ts": "2026-06-13T03:17:21.464Z",
+    "level": "system",
+    "message": "Simulation POST /api/simulate/reset → 200",
+    "ms": 2,
+    "status": 200
+  },
+  {
+    "id": "log-1781320641463-2g12um",
+    "ts": "2026-06-13T03:17:21.463Z",
+    "level": "system",
+    "message": "Demo reset — simulation and containment state cleared"
+  },
+  {
+    "id": "log-1781320551710-oujp48",
+    "ts": "2026-06-13T03:15:51.710Z",
+    "level": "webhook",
+    "message": "Webhook POST /api/webhook/wazuh → 200",
+    "ms": 1,
+    "status": 200
+  },
+  {
+    "id": "log-1781320551709-hrge3o",
+    "ts": "2026-06-13T03:15:51.709Z",
+    "level": "webhook",
+    "message": "Ignored Wazuh/Yara alert: Not Kerberoasting — need Event 4769, T1558, or weak ticket encryption (etype > 0x07)",
+    "kind": "unknown",
+    "preview": "{\"rule\":\"the audit log was cleared\",\"agent\":\"SERVER01\"}"
+  },
+  {
+    "id": "log-1781320547659-eiuzq1",
+    "ts": "2026-06-13T03:15:47.659Z",
+    "level": "webhook",
+    "message": "Webhook POST /api/webhook/wazuh → 200",
+    "ms": 2,
+    "status": 200
+  },
+  {
+    "id": "log-1781320547657-xal1wo",
+    "ts": "2026-06-13T03:15:47.657Z",
+    "level": "webhook",
+    "message": "Ignored Wazuh/Yara alert: Not Kerberoasting — need Event 4769, T1558, or weak ticket encryption (etype > 0x07)",
+    "kind": "unknown",
+    "preview": "{\"rule\":\"executable file dropped in folder commonly used by malware\",\"agent\":\"SERVER01\"}"
+  },
+  {
+    "id": "log-1781320438585-qil5ms",
+    "ts": "2026-06-13T03:13:58.585Z",
+    "level": "webhook",
+    "message": "Webhook POST /api/webhook/wazuh → 200",
+    "ms": 2,
+    "status": 200
+  },
+  {
+    "id": "log-1781320438583-tlr7r3",
+    "ts": "2026-06-13T03:13:58.583Z",
+    "level": "webhook",
+    "message": "Ignored Wazuh/Yara alert: Not Kerberoasting — need Event 4769, T1558, or weak ticket encryption (etype > 0x07)",
+    "kind": "unknown",
+    "preview": "{\"rule\":\"discovery activity executed\",\"agent\":\"SERVER01\"}"
+  },
+  {
+    "id": "log-1781320437538-0g90g3",
+    "ts": "2026-06-13T03:13:57.538Z",
+    "level": "webhook",
+    "message": "Webhook POST /api/webhook/wazuh → 200",
+    "ms": 2,
+    "status": 200
+  },
+  {
+    "id": "log-1781320437537-cmtbqy",
+    "ts": "2026-06-13T03:13:57.537Z",
+    "level": "webhook",
+    "message": "Ignored Wazuh/Yara alert: Not Kerberoasting — need Event 4769, T1558, or weak ticket encryption (etype > 0x07)",
+    "kind": "unknown",
+    "preview": "{\"rule\":\"discovery activity spawned via powershell execution\",\"agent\":\"SERVER01\"}"
+  },
+  {
+    "id": "log-1781320437397-6c2kt0",
+    "ts": "2026-06-13T03:13:57.397Z",
+    "level": "ai",
+    "message": "ARIA chat POST /api/ai/chat → 200",
+    "ms": 9732,
+    "status": 200
+  },
+  {
+    "id": "log-1781320436915-v8sj4p",
+    "ts": "2026-06-13T03:13:56.915Z",
+    "level": "ai",
+    "message": "ARIA chat POST /api/ai/chat → 200",
+    "ms": 9256,
+    "status": 200
+  },
+  {
+    "id": "log-1781320425486-t9bgrc",
+    "ts": "2026-06-13T03:13:45.486Z",
+    "level": "webhook",
+    "message": "Webhook POST /api/webhook/wazuh → 400",
+    "ms": 3,
+    "status": 400
+  },
+  {
+    "id": "log-1781320425484-zhsyq8",
+    "ts": "2026-06-13T03:13:45.484Z",
+    "level": "warn",
+    "message": "Webhook accepted but could not parse Kerberoasting alert",
+    "preview": "{\"rule\":\"windows logon success\",\"event_id\":4769}"
+  },
+  {
+    "id": "log-1781320425477-buql6q",
+    "ts": "2026-06-13T03:13:45.477Z",
+    "level": "webhook",
+    "message": "Webhook POST /api/webhook/wazuh → 400",
+    "ms": 5,
+    "status": 400
+  },
+  {
+    "id": "log-1781320425475-17fd36",
+    "ts": "2026-06-13T03:13:45.475Z",
+    "level": "warn",
+    "message": "Webhook accepted but could not parse Kerberoasting alert",
+    "preview": "{\"rule\":\"windows logon success\",\"event_id\":4769,\"etype\":\"0x12\",\"agent\":\"SERVER01\"}"
+  },
+  {
+    "id": "log-1781320389390-beqe77",
+    "ts": "2026-06-13T03:13:09.390Z",
+    "level": "system",
+    "message": "Simulation POST /api/simulate/kerberoast → 200",
+    "ms": 3,
+    "status": 200
+  },
+  {
+    "id": "log-1781320389389-bzs5v8",
+    "ts": "2026-06-13T03:13:09.389Z",
+    "level": "system",
+    "message": "Kerberoasting simulation started (Run attack)",
+    "incident_id": "alert-001",
+    "attack": "Kerberoasting",
+    "target": "svc-sql",
+    "note": "Local demo — not a live Wazuh/AD attack"
+  },
+  {
+    "id": "log-1781320321093-47nkac",
+    "ts": "2026-06-13T03:12:01.093Z",
+    "level": "ai",
+    "message": "ARIA chat POST /api/ai/chat → 200",
+    "ms": 9997,
+    "status": 200
+  },
+  {
+    "id": "log-1781320320072-t9y3l8",
+    "ts": "2026-06-13T03:12:00.072Z",
+    "level": "ai",
+    "message": "ARIA chat POST /api/ai/chat → 200",
+    "ms": 8969,
+    "status": 200
+  },
+  {
+    "id": "log-1781320286321-r7klk6",
+    "ts": "2026-06-13T03:11:26.321Z",
+    "level": "ai",
+    "message": "ARIA chat POST /api/ai/chat → 200",
+    "ms": 4746,
+    "status": 200
+  },
+  {
+    "id": "log-1781320156285-2uxee6",
+    "ts": "2026-06-13T03:09:16.285Z",
+    "level": "system",
+    "message": "AuthGraph data store initialized",
+    "data_dir": "C:\\Users\\Bahadur\\Autograph\\data"
+  },
+  {
+    "id": "log-1781320155073-cjf7yw",
+    "ts": "2026-06-13T03:09:15.073Z",
+    "level": "system",
+    "message": "AuthGraph data store initialized",
+    "data_dir": "C:\\Users\\Bahadur\\Autograph\\data"
+  },
+  {
+    "id": "log-1781320147595-c9lk1h",
+    "ts": "2026-06-13T03:09:07.595Z",
+    "level": "system",
+    "message": "AuthGraph data store initialized",
+    "data_dir": "C:\\Users\\Bahadur\\Autograph\\data"
+  },
+  {
+    "id": "log-1781320146574-l5sdhz",
+    "ts": "2026-06-13T03:09:06.574Z",
+    "level": "system",
+    "message": "AuthGraph data store initialized",
+    "data_dir": "C:\\Users\\Bahadur\\Autograph\\data"
+  },
+  {
+    "id": "log-1781320088360-754279",
+    "ts": "2026-06-13T03:08:08.360Z",
+    "level": "system",
+    "message": "AuthGraph data store initialized",
+    "data_dir": "C:\\Users\\Bahadur\\Autograph\\data"
+  },
+  {
+    "id": "log-1781320057042-xld3l0",
+    "ts": "2026-06-13T03:07:37.042Z",
+    "level": "ai",
+    "message": "ARIA enriched incident alert-001",
+    "incident_id": "alert-001",
+    "headline": "Lowpriv.user Kerberoasts svc-sql on DC01",
+    "actions": 4
+  },
+  {
+    "id": "log-1781320036875-ro7dbq",
+    "ts": "2026-06-13T03:07:16.875Z",
+    "level": "system",
+    "message": "Kerberoasting simulation started",
+    "incident_id": "alert-001",
+    "attack": "Kerberoasting",
+    "target": "svc-sql"
+  },
+  {
+    "id": "log-1781319895301-7oecze",
+    "ts": "2026-06-13T03:04:55.301Z",
+    "level": "webhook",
+    "message": "Ignored Wazuh alert: Not a Kerberoasting / Event 4769 ITDR alert",
+    "kind": "unknown"
+  },
+  {
+    "id": "log-1781319895249-a6u0cn",
+    "ts": "2026-06-13T03:04:55.249Z",
+    "level": "webhook",
+    "message": "Ignored Wazuh alert: Not a Kerberoasting / Event 4769 ITDR alert",
+    "kind": "unknown"
+  },
+  {
+    "id": "log-1781319895190-oj4m1h",
+    "ts": "2026-06-13T03:04:55.190Z",
+    "level": "webhook",
+    "message": "Ignored Wazuh alert: Not a Kerberoasting / Event 4769 ITDR alert",
+    "kind": "unknown"
+  },
+  {
+    "id": "log-1781319895136-c1glrj",
+    "ts": "2026-06-13T03:04:55.136Z",
+    "level": "webhook",
+    "message": "Ignored Wazuh alert: Not a Kerberoasting / Event 4769 ITDR alert",
+    "kind": "unknown"
+  },
+  {
+    "id": "log-1781319823957-4hj7v2",
+    "ts": "2026-06-13T03:03:43.957Z",
+    "level": "system",
+    "message": "Demo reset — simulation and containment state cleared"
+  },
+  {
+    "id": "log-1781319823956-2nlsgk",
+    "ts": "2026-06-13T03:03:43.956Z",
+    "level": "system",
+    "message": "AuthGraph data store initialized",
+    "data_dir": "C:\\Users\\Bahadur\\Autograph\\data"
+  },
+  {
+    "id": "log-1781319809514-a11f7j",
+    "ts": "2026-06-13T03:03:29.514Z",
+    "level": "system",
+    "message": "AuthGraph data store initialized",
+    "data_dir": "C:\\Users\\Bahadur\\Autograph\\data"
+  },
+  {
+    "id": "log-1781319808968-jjpov5",
+    "ts": "2026-06-13T03:03:28.968Z",
+    "level": "system",
+    "message": "AuthGraph data store initialized",
+    "data_dir": "C:\\Users\\Bahadur\\Autograph\\data"
+  },
+  {
+    "id": "log-1781319741614-v0jcuv",
+    "ts": "2026-06-13T03:02:21.614Z",
+    "level": "system",
+    "message": "AuthGraph data store initialized",
+    "data_dir": "C:\\Users\\Bahadur\\Autograph\\data"
+  },
+  {
+    "id": "log-1781319737889-ozkvbr",
+    "ts": "2026-06-13T03:02:17.889Z",
+    "level": "system",
+    "message": "AuthGraph data store initialized",
+    "data_dir": "C:\\Users\\Bahadur\\Autograph\\data"
+  },
+  {
+    "id": "log-1781319737269-jwk3yz",
+    "ts": "2026-06-13T03:02:17.269Z",
+    "level": "system",
+    "message": "AuthGraph data store initialized",
+    "data_dir": "C:\\Users\\Bahadur\\Autograph\\data"
+  },
+  {
+    "id": "log-1781319736675-snf3p8",
+    "ts": "2026-06-13T03:02:16.675Z",
+    "level": "system",
+    "message": "AuthGraph data store initialized",
+    "data_dir": "C:\\Users\\Bahadur\\Autograph\\data"
+  },
+  {
+    "id": "log-1781319732384-uknk1p",
+    "ts": "2026-06-13T03:02:12.384Z",
+    "level": "system",
+    "message": "AuthGraph data store initialized",
+    "data_dir": "C:\\Users\\Bahadur\\Autograph\\data"
+  },
+  {
+    "id": "log-1781319731842-g97kvc",
+    "ts": "2026-06-13T03:02:11.842Z",
+    "level": "system",
+    "message": "AuthGraph data store initialized",
+    "data_dir": "C:\\Users\\Bahadur\\Autograph\\data"
+  },
+  {
+    "id": "log-1781319730259-icasqn",
+    "ts": "2026-06-13T03:02:10.259Z",
+    "level": "system",
+    "message": "AuthGraph data store initialized",
+    "data_dir": "C:\\Users\\Bahadur\\Autograph\\data"
+  },
+  {
+    "id": "log-1781319729724-rwwacc",
+    "ts": "2026-06-13T03:02:09.724Z",
+    "level": "system",
+    "message": "AuthGraph data store initialized",
+    "data_dir": "C:\\Users\\Bahadur\\Autograph\\data"
+  },
+  {
+    "id": "log-1781319728848-86be0l",
+    "ts": "2026-06-13T03:02:08.848Z",
+    "level": "system",
+    "message": "AuthGraph data store initialized",
+    "data_dir": "C:\\Users\\Bahadur\\Autograph\\data"
+  },
+  {
+    "id": "log-1781319728085-hd9p05",
+    "ts": "2026-06-13T03:02:08.085Z",
+    "level": "system",
+    "message": "AuthGraph data store initialized",
+    "data_dir": "C:\\Users\\Bahadur\\Autograph\\data"
+  },
+  {
+    "id": "log-1781319726882-c0bm7v",
+    "ts": "2026-06-13T03:02:06.882Z",
+    "level": "system",
+    "message": "AuthGraph data store initialized",
+    "data_dir": "C:\\Users\\Bahadur\\Autograph\\data"
+  },
+  {
+    "id": "log-1781319725415-tvvlel",
+    "ts": "2026-06-13T03:02:05.415Z",
+    "level": "system",
+    "message": "AuthGraph data store initialized",
+    "data_dir": "C:\\Users\\Bahadur\\Autograph\\data"
+  }
+]

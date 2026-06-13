@@ -7,7 +7,7 @@ const {
   KERBEROS_EVENT_ID,
   MULTIPLE_TGS_THRESHOLD,
 } = require("./constants");
-const { parseKerberosEvent, isKrbtgtService, isRc4Encryption } = require("./event_parser");
+const { parseKerberosEvent, isKrbtgtService, isRc4Encryption, isWeakKerberosEncryption } = require("./event_parser");
 
 /**
  * @typedef {Object} SigmaMatchResult
@@ -17,7 +17,7 @@ const { parseKerberosEvent, isKrbtgtService, isRc4Encryption } = require("./even
  */
 
 function matchSigmaRule(rawEvent) {
-  const parsed = typeof rawEvent.event_id === "number" ? rawEvent : parseKerberosEvent(rawEvent);
+  const parsed = parseKerberosEvent(rawEvent);
   const reasons = [];
   const indicators = {
     event_4769: false,
@@ -45,16 +45,19 @@ function matchSigmaRule(rawEvent) {
 
   indicators.not_krbtgt = true;
 
-  if (!parsed.is_rc4 && !isRc4Encryption(parsed.encryption_type)) {
+  if (!parsed.is_rc4 && !isRc4Encryption(parsed.encryption_type) && !parsed.is_weak_encryption && !isWeakKerberosEncryption(parsed.encryption_type)) {
     return {
       matched: false,
-      reasons: [...reasons, "No RC4 encryption type — lower Kerberoasting confidence"],
+      reasons: [...reasons, "Strong Kerberos encryption — lower Kerberoasting confidence"],
       indicators,
     };
   }
 
-  indicators.rc4_encryption = true;
-  reasons.push("RC4 encrypted service ticket requested (crackable offline)");
+  indicators.rc4_encryption = parsed.is_rc4 || isRc4Encryption(parsed.encryption_type);
+  const weakLabel = indicators.rc4_encryption
+    ? "RC4 encrypted service ticket requested (crackable offline)"
+    : "Weak ticket encryption type (Yara: etype > 0x07)";
+  reasons.push(weakLabel);
 
   if (parsed.has_spn) {
     indicators.has_spn = true;
@@ -115,7 +118,7 @@ function detectMultipleTgs(events, user) {
  */
 function detectKerberoasting(rawEvents) {
   const events = Array.isArray(rawEvents)
-    ? rawEvents.map((e) => (e.event_id ? e : parseKerberosEvent(e))).filter(Boolean)
+    ? rawEvents.map((e) => parseKerberosEvent(e)).filter(Boolean)
     : [];
 
   const matchedEvents = events.filter((evt) => matchSigmaRule(evt).matched);
