@@ -1,0 +1,44 @@
+title: Kerberoasting - RC4 TGS From Non-Standard Workstation Pattern
+id: authgraph-kb-13-workstation-burst
+status: experimental
+description: |
+  User accounts rarely request RC4 TGS from a workstation that then hits many SPNs.
+  Correlates TargetUserName + WorkstationName: 3+ distinct ServiceNames in 10 min
+  from same workstation (catches roasting from attacker VM even if user is shared).
+  Complements IP-based correlation in rule 02.
+author: Gular — AuthGraph ITDR Detection Team
+date: 2026/06/12
+references:
+  - https://attack.mitre.org/techniques/T1558.003/
+tags:
+  - attack.credential_access
+  - attack.t1558.003
+logsource:
+  product: windows
+  service: security
+detection:
+  selection:
+    EventID: 4769
+    Status: '0x0'
+    TicketEncryptionType:
+      - '0x17'
+      - '0x1'
+      - '0x23'
+  filter_krbtgt:
+    ServiceName|contains: 'krbtgt'
+  filter_machine_spn:
+    ServiceName|endswith: '$'
+  filter_machine_user:
+    TargetUserName|contains: '$@'
+  filter_dc_workstation:
+    WorkstationName|startswith: 'DC'
+  condition: selection and not 1 of filter_* | count_distinct(ServiceName) by WorkstationName, TargetUserName > 3
+  timeframe: 10m
+falsepositives:
+  - Jump hosts or admin workstations accessing multiple legacy services
+level: high
+fields:
+  - TargetUserName
+  - WorkstationName
+  - ServiceName
+  - IpAddress

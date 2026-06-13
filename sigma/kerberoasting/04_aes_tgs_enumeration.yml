@@ -1,0 +1,44 @@
+title: Kerberoasting - AES TGS Mass Enumeration (RC4 Disabled Environment)
+id: authgraph-kb-04-aes-enum
+status: experimental
+description: |
+  Modern domains disable RC4; attackers still Kerberoast using AES tickets (slower
+  offline crack but still viable). Detects 5+ distinct AES-encrypted TGS requests
+  from the same user in 5 minutes.
+  TicketEncryptionType 0x11 = AES128, 0x12 = AES256.
+author: Gular — AuthGraph ITDR Detection Team
+date: 2026/06/12
+references:
+  - https://attack.mitre.org/techniques/T1558.003/
+  - https://redcanary.com/blog/threat-detection/marshmallows-and-kerberoasting/
+tags:
+  - attack.credential_access
+  - attack.t1558.003
+logsource:
+  product: windows
+  service: security
+detection:
+  selection:
+    EventID: 4769
+    Status: '0x0'
+    TicketEncryptionType:
+      - '0x11'
+      - '0x12'
+      - '17'
+      - '18'
+  filter_krbtgt:
+    ServiceName|contains: 'krbtgt'
+  filter_machine_spn:
+    ServiceName|endswith: '$'
+  filter_machine_user:
+    TargetUserName|contains: '$@'
+  condition: selection and not 1 of filter_* | count_distinct(ServiceName) by TargetUserName, IpAddress > 5
+  timeframe: 5m
+falsepositives:
+  - Automated service health checks across many AES-enabled endpoints
+level: high
+fields:
+  - TargetUserName
+  - ServiceName
+  - TicketEncryptionType
+  - IpAddress

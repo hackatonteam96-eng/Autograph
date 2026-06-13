@@ -1,0 +1,48 @@
+title: Kerberoasting - RC4 TGS With Known Roast TicketOptions
+id: authgraph-kb-12-ticket-options
+status: experimental
+description: |
+  Variant of RC4 detection using TicketOptions values commonly seen in Kerberoasting
+  TGS requests (forwardable, renewable). Use alongside rule 01 — catches attacks
+  where TicketOptions is present and matches roast tooling defaults.
+  Values: 0x40810000, 0x40800000, 0x40810010 (per Red Canary / Trimarc research).
+author: Gular — AuthGraph ITDR Detection Team
+date: 2026/06/12
+references:
+  - https://attack.mitre.org/techniques/T1558.003/
+  - https://redcanary.com/blog/threat-detection/marshmallows-and-kerberoasting/
+tags:
+  - attack.credential_access
+  - attack.t1558.003
+logsource:
+  product: windows
+  service: security
+detection:
+  selection:
+    EventID: 4769
+    Status: '0x0'
+    TicketOptions:
+      - '0x40810000'
+      - '0x40800000'
+      - '0x40810010'
+      - '1082195968'   # decimal of 0x40810000
+  filter_rc4:
+    TicketEncryptionType:
+      - '0x17'
+      - '0x1'
+      - '0x23'
+  filter_krbtgt:
+    ServiceName|contains: 'krbtgt'
+  filter_machine_spn:
+    ServiceName|endswith: '$'
+  filter_machine_user:
+    TargetUserName|contains: '$@'
+  condition: selection and filter_rc4 and not 1 of filter_krbtgt, filter_machine_spn, filter_machine_user
+falsepositives:
+  - Normal Kerberos clients using standard ticket option flags
+level: medium
+fields:
+  - TargetUserName
+  - ServiceName
+  - TicketEncryptionType
+  - TicketOptions
