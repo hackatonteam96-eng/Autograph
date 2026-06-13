@@ -66,11 +66,21 @@ ensure_rule_include() {
 test_wazuh_config() {
   if [[ -x /var/ossec/bin/wazuh-analysisd ]]; then
     log "Testing Wazuh config (wazuh-analysisd -t)"
-    /var/ossec/bin/wazuh-analysisd -t 2>&1 | tail -5
+    local logfile
+    logfile="$(mktemp)"
+    if ( cd /var/ossec && /var/ossec/bin/wazuh-analysisd -t ) >"$logfile" 2>&1; then
+      tail -3 "$logfile"
+      rm -f "$logfile"
+      return 0
+    fi
+    tail -15 "$logfile"
+    rm -f "$logfile"
+    return 1
   elif [[ -x /var/ossec/bin/ossec-analysisd ]]; then
-    /var/ossec/bin/ossec-analysisd -t 2>&1 | tail -5
+    ( cd /var/ossec && /var/ossec/bin/ossec-analysisd -t ) 2>&1 | tail -5
   else
     log "WARN: wazuh-analysisd not found — skipping config test"
+    return 0
   fi
 }
 

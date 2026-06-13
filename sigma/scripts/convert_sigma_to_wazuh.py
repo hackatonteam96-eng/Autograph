@@ -36,15 +36,16 @@ SKIP_FILES = {
     "brute-force.yml",
 }
 
-# Sigma → Wazuh field names (IpAddress/target user use decoder aliases)
+# Sigma → Wazuh dynamic fields (EventChannel). Do NOT use static names
+# (dstuser, srcip, status) in <field> — analysisd rejects them.
 FIELD_MAP = {
     "EventID": "win.system.eventID",
-    "TargetUserName": "dstuser",
+    "TargetUserName": "win.eventdata.targetUserName",
     "TargetDomainName": "win.eventdata.targetDomainName",
     "ServiceName": "win.eventdata.serviceName",
     "TicketEncryptionType": "win.eventdata.ticketEncryptionType",
     "TicketOptions": "win.eventdata.ticketOptions",
-    "IpAddress": "srcip",
+    "IpAddress": "win.eventdata.ipAddress",
     "WorkstationName": "win.eventdata.workstationName",
     "Status": "win.eventdata.status",
     "SubStatus": "win.eventdata.subStatus",
@@ -291,6 +292,18 @@ def group_or_selections(detection: dict, block_names: list[str]) -> list[list[tu
     return [merge_detection_blocks(detection, [b]) for b in block_names]
 
 
+def add_field_criterion(
+    rule: ET.Element, wfield: str, regex: str, negate: bool
+) -> None:
+    """Append a field match; win.eventdata.* fields use pcre2."""
+    field_el = ET.SubElement(rule, "field", name=wfield)
+    if wfield.startswith("win."):
+        field_el.set("type", "pcre2")
+    if negate:
+        field_el.set("negate", "yes")
+    field_el.text = regex
+
+
 def build_rule_element(
     rule_id: int,
     level: int,
@@ -320,10 +333,7 @@ def build_rule_element(
         child.text = "windows,"
 
     for wfield, regex, negate in criteria:
-        field_el = ET.SubElement(rule, "field", name=wfield, type="pcre2")
-        if negate:
-            field_el.set("negate", "yes")
-        field_el.text = regex
+        add_field_criterion(rule, wfield, regex, negate)
 
     if same_fields:
         for sf in same_fields:
