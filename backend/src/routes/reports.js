@@ -5,7 +5,14 @@ const {
   buildIncidentReportBundle,
   sendIncidentReport,
   queueIncidentReport,
+  generateIncidentReport,
 } = require("../services/incidentReport");
+const {
+  buildExecutivePdf,
+  buildExecutiveDocx,
+  exportFilename,
+} = require("../services/executiveExport");
+const { appendEvent } = require("../services/eventLog");
 const { asyncHandler } = require("../middleware/errorHandler");
 
 const router = express.Router();
@@ -105,6 +112,46 @@ router.post("/reports/:incidentId/queue", asyncHandler(async (req, res) => {
 
   queueIncidentReport(dataStore, alert.id, { force: Boolean(req.body?.force), to: req.body?.to });
   res.json({ ok: true, message: "Report queued", incident_id: alert.id });
+}));
+
+router.post("/reports/:incidentId/export", asyncHandler(async (req, res) => {
+  const format = String(req.body?.format || "pdf").toLowerCase();
+  if (!["pdf", "docx"].includes(format)) {
+    return res.status(400).json({ ok: false, error: "format must be pdf or docx" });
+  }
+
+  const alert = dataStore.getAlertById(req.params.incidentId);
+  if (!alert) return res.status(404).json({ ok: false, error: "Incident not found" });
+
+  const enrichment = dataStore.getAiEnrichment(alert.id) || {};
+  const extras = {
+    attackPath: dataStore.loadAttackPath(alert),
+    contained: dataStore.getIncidentStatus(alert.id) === "contained",
+    aiEnrichment: enrichment,
+    executive: true,
+    maxTokens: 2800,
+  };
+
+  const report = await generateIncidentReport(alert, extras);
+  const buffer = format === "pdf"
+    ? await buildExecutivePdf(alert, report)
+    : await buildExecutiveDocx(alert, report);
+  const filename = exportFilename(alert, format);
+  const contentType = format === "pdf"
+    ? "application/pdf"
+    : "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+
+  appendEvent("ai", `Executive ${format.toUpperCase()} generated for ${alert.attack}`, {
+    incident_id: alert.id,
+    format,
+    model: report.model || report.source || "fallback",
+  });
+
+  res.setHeader("Content-Type", contentType);
+  res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+  res.setHeader("X-Report-Source", report.source || "unknown");
+  if (report.model) res.setHeader("X-Report-Model", report.model);
+  res.send(buffer);
 }));
 
 module.exports = router;

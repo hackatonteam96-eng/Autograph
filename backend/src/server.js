@@ -79,6 +79,7 @@ app.get("/", (_req, res) => {
       "GET /api/reports/config",
       "GET /api/reports/:incidentId/preview",
       "POST /api/reports/:incidentId/send",
+      "POST /api/reports/:incidentId/export",
     ],
   });
 });

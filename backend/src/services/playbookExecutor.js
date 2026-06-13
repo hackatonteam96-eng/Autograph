@@ -45,6 +45,7 @@ const PLAYBOOK_PATTERNS = [
     description: "Audit, disable Do not require Kerberos preauthentication, and verify",
   },
   {
+    test: /disable.*user|source user|Disable-ADAccount/i,
     id: "disable_source_user",
     command: (ctx) =>
       `Disable-ADAccount -Identity '${ctx.user}'${psServerFlag(ctx)}`,
@@ -96,19 +97,19 @@ const PLAYBOOK_PATTERNS = [
 
 function matchPlaybook(action, context) {
   const ctx = context?.user ? context : buildPlaybookContext(context);
+  const actionText = typeof action === "string" ? action : action?.action || String(action ?? "");
   for (const pattern of PLAYBOOK_PATTERNS) {
-    if (pattern.test.test(action)) {
-      return {
-        id: pattern.id,
-        action,
-        description: pattern.description,
-        command: pattern.command(ctx),
-      };
-    }
+    if (!pattern.test || !pattern.test.test(actionText)) continue;
+    return {
+      id: pattern.id,
+      action: actionText,
+      description: pattern.description,
+      command: pattern.command(ctx),
+    };
   }
   return {
     id: "custom_action",
-    action,
+    action: actionText,
     description: "Custom approved response action",
     command: `# ${action}`,
   };
@@ -152,15 +153,9 @@ async function executePlaybook(actions, context, incidentId) {
       const result = {
         ...base,
         status: "simulated",
-        message: "Copy-run mode — paste commands in lab AD. Set LAB_AD_ENABLED=true for automated execution",
+        message: "Copy-run — paste in lab AD PowerShell (not executed automatically)",
       };
       results.push(result);
-      appendEvent("action", `Playbook dry-run: ${action}`, {
-        incident_id: incidentId,
-        playbook_id: step.id,
-        command: step.command,
-        status: "simulated",
-      });
       continue;
     }
 

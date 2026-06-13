@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import { PaperPlaneTilt, Cpu, CircleNotch } from '@phosphor-icons/react'
 import { api } from '../api/client'
@@ -9,6 +9,27 @@ type Message = {
   text: string
   ts: string
   model?: string
+}
+
+function chatStorageKey(incidentId: string) {
+  return `authgraph:aria-chat:${incidentId}`
+}
+
+function loadStoredMessages(incidentId: string): Message[] | null {
+  try {
+    const raw = sessionStorage.getItem(chatStorageKey(incidentId))
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed : null
+  } catch {
+    return null
+  }
+}
+
+function saveStoredMessages(incidentId: string, messages: Message[]) {
+  try {
+    sessionStorage.setItem(chatStorageKey(incidentId), JSON.stringify(messages))
+  } catch { /* quota / private mode */ }
 }
 
 function buildQuickPrompts(user?: string, target?: string) {
@@ -50,11 +71,8 @@ export default function AnalystCopilot({
   disabled,
   compact = false,
   viewContext,
-  incidentHeadline,
-  incidentVerdict,
   incidentUser,
   incidentTarget,
-  incidentRisk,
   autoAsk,
   onAutoAskHandled,
 }: {
@@ -73,10 +91,12 @@ export default function AnalystCopilot({
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
-  const [, setLastAssistantIdx] = useState(-1)
   const [modelLabel, setModelLabel] = useState('deepseek-v4-flash')
   const endRef = useRef<HTMLDivElement>(null)
   const seededFor = useRef<string | null>(null)
+  const initDone = useRef(false)
+  const pendingAutoAsk = useRef<string | null>(null)
+  const messagesRef = useRef<Message[]>([])
 
   const quickPrompts = useMemo(
     () => buildQuickPrompts(incidentUser, incidentTarget),
@@ -84,42 +104,20 @@ export default function AnalystCopilot({
   )
 
   useEffect(() => {
-    if (disabled || !incidentId) return
-    if (seededFor.current === incidentId) return
-    seededFor.current = incidentId
+    messagesRef.current = messages
+  }, [messages])
 
-    const seedText = 'Hey — I\'m ARIA, on the board with you. Ask about the attack path, blast radius, containment, or say "summarize" for a quick brief.'
-
-    setMessages([{
-      role: 'assistant',
-      ts: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      text: seedText,
-      model: 'deepseek-v4-flash',
-    }])
-    setLastAssistantIdx(0)
-  }, [disabled, incidentId, incidentHeadline, incidentVerdict, incidentUser, incidentTarget, incidentRisk])
-
-  useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, loading])
-
-  useEffect(() => {
-    if (!autoAsk?.trim() || disabled || loading) return
-    onAutoAskHandled?.()
-    ask(autoAsk)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoAsk])
-
-  async function ask(text: string) {
+  const ask = useCallback(async (text: string) => {
     if (!text.trim() || loading || disabled) return
     const ts = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     const userMsg: Message = { role: 'user', text, ts }
-    const nextMessages = [...messages, userMsg]
+    const prior = messagesRef.current
+    const nextMessages = [...prior, userMsg]
     setMessages(nextMessages)
     setInput('')
     setLoading(true)
 
-    const history = nextMessages.slice(0, -1).map((m) => ({
+    const history = prior.map((m) => ({
       role: m.role,
       content: m.text,
     }))
@@ -131,16 +129,12 @@ export default function AnalystCopilot({
       if (data.model) {
         setModelLabel(data.model.includes('v4-pro') ? 'deepseek-v4-pro' : 'deepseek-v4-flash')
       }
-      setMessages((m) => {
-        const updated = [...m, {
-          role: 'assistant' as const,
-          text: reply,
-          ts: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          model: usedModel,
-        }]
-        setLastAssistantIdx(updated.length - 1)
-        return updated
-      })
+      setMessages((m) => [...m, {
+        role: 'assistant',
+        text: reply,
+        ts: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        model: usedModel,
+      }])
     } catch (err) {
       const timedOut = err instanceof DOMException && err.name === 'TimeoutError'
       const msg = err instanceof Error ? err.message : 'Unknown error'
@@ -155,7 +149,57 @@ export default function AnalystCopilot({
     } finally {
       setLoading(false)
     }
-  }
+  }, [disabled, incidentId, loading, viewContext])
+
+  useEffect(() => {
+    if (disabled || !incidentId) {
+      initDone.current = false
+      return
+    }
+    if (seededFor.current === incidentId) return
+    seededFor.current = incidentId
+    initDone.current = false
+
+    const stored = loadStoredMessages(incidentId)
+    if (stored?.length) {
+      setMessages(stored)
+    } else {
+      const seedText = 'Hey — I\'m ARIA, on the board with you. Ask about the attack path, blast radius, containment, or say "summarize" for a quick brief.'
+      setMessages([{
+        role: 'assistant',
+        ts: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        text: seedText,
+        model: 'deepseek-v4-flash',
+      }])
+    }
+
+    initDone.current = true
+
+    if (pendingAutoAsk.current) {
+      const q = pendingAutoAsk.current
+      pendingAutoAsk.current = null
+      window.setTimeout(() => { void ask(q) }, 50)
+    }
+  }, [disabled, incidentId, ask])
+
+  useEffect(() => {
+    if (!incidentId || messages.length === 0) return
+    saveStoredMessages(incidentId, messages)
+  }, [incidentId, messages])
+
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages, loading])
+
+  useEffect(() => {
+    if (!autoAsk?.trim() || disabled || loading) return
+    onAutoAskHandled?.()
+    if (!initDone.current) {
+      pendingAutoAsk.current = autoAsk
+      return
+    }
+    void ask(autoAsk)
+  }, [autoAsk, disabled, loading, ask, onAutoAskHandled])
 
   return (
     <div className={`aria ${compact ? 'aria--compact' : ''}`}>

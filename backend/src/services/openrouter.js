@@ -28,6 +28,8 @@ const GREETING_RE = /^(hi|hello|hey|yo|what'?s up|howdy|sup|hii|heyy|greetings|g
 
 const REASONING_RE = /\b(explain|why is|why are|why did|contain|blast radius|attack path|walk me through|step.?by.?step|what should i|priorit|audit|analyze|analyse|investigate|recommend|remediation|mitigat|reasoning|break down|assess|compare|difference|false positive|triage|executive|brief|summarize|summarise|how does|what happens|what if|who|impact|escalat|lateral|privilege|bloodhound|kerberos|4769|spn|rc4|crack|ticket|mitre|technique|playbook|first move|next step|urgent|critical)\b/i;
 
+const PLAYBOOK_RE = /\b(powershell|```|copy-paste|copy paste|rewrite|Set-AD|Get-AD|complete rewrite|code block|lab ad|preauth|pre-auth)\b/i;
+
 function isGreeting(message) {
   const text = message.trim();
   if (GREETING_RE.test(text)) return true;
@@ -36,7 +38,11 @@ function isGreeting(message) {
 }
 
 function needsReasoning(message) {
-  return REASONING_RE.test(message.trim());
+  return REASONING_RE.test(message.trim()) || PLAYBOOK_RE.test(message.trim());
+}
+
+function isPlaybookRequest(message) {
+  return PLAYBOOK_RE.test(message.trim());
 }
 
 function pickChatModel(message) {
@@ -238,8 +244,9 @@ async function enrichIncidentOnIngest(alert, extras = {}) {
 async function chatWithAnalyst(alert, userMessage, conversationHistory = [], extras = {}) {
   const greeting = isGreeting(userMessage);
   const offtopic = !greeting && isOffTopic(userMessage);
-  const reasoning = !greeting && needsReasoning(userMessage);
-  const mode = greeting ? "greeting" : offtopic ? "offtopic" : "incident";
+  const playbook = !greeting && isPlaybookRequest(userMessage);
+  const reasoning = !greeting && (playbook || needsReasoning(userMessage));
+  const mode = greeting ? "greeting" : offtopic ? "offtopic" : playbook ? "playbook" : "incident";
 
   if (greeting && !OPENROUTER_API_KEY) {
     return { reply: pickGreetingReply(), model: null };
@@ -270,11 +277,14 @@ async function chatWithAnalyst(alert, userMessage, conversationHistory = [], ext
     }
   }
 
-  const model = pickChatModel(userMessage);
+  const model = playbook ? OPENROUTER_REASONING_MODEL : pickChatModel(userMessage);
 
-  const fallback = reasoning
-    ? `Kerberoast in flight: ${alert.user} → ${alert.target}, risk ${alert.risk}. Ask me about path, blast radius, or what to contain first.`
-    : "What would you like to look at — path, containment, or executive brief?";
+  const attack = alert?.attack || "Identity threat";
+  const fallback = playbook
+    ? `I can draft lab PowerShell for ${attack} on ${alert.host} targeting ${alert.target}. Confirm the DC hostname (${alert.host}) and I will output audit, contain, remediate, and verify blocks with -Server on each Get/Set-AD command.`
+    : reasoning
+      ? `${attack} in flight: ${alert.user} → ${alert.target}, risk ${alert.risk}/100. Ask me about path, blast radius, or what to contain first.`
+      : "What would you like to look at — path, containment, or executive brief?";
 
   if (!OPENROUTER_API_KEY) return { reply: fallback, model: null };
 
@@ -301,7 +311,7 @@ async function chatWithAnalyst(alert, userMessage, conversationHistory = [], ext
     content: `<mode_incident>\n${incidentBlock}\n\nAnalyst message: ${userMessage.trim()}\n</mode_incident>`,
   });
 
-  const maxTokens = reasoning ? 550 : 320;
+  const maxTokens = playbook ? 1800 : reasoning ? 700 : 320;
 
   try {
     const { text, model: usedModel } = await callOpenRouter({

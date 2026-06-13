@@ -15,7 +15,9 @@
   },
   "dependencies": {
     "cors": "^2.8.5",
-    "express": "^4.21.2"
+    "docx": "^9.7.1",
+    "express": "^4.21.2",
+    "pdfkit": "^0.19.1"
   },
   "keywords": [
     "itdr",

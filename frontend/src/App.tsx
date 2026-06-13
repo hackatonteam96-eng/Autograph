@@ -17,6 +17,8 @@ import {
   Cpu,
   Radioactive,
   Scroll,
+  FilePdf,
+  FileDoc,
 } from '@phosphor-icons/react'
 import { motion, AnimatePresence, useMotionValue, useSpring } from 'motion/react'
 import AttackGraph from './components/AttackGraph'
@@ -26,7 +28,7 @@ import CodeBlock from './components/CodeBlock'
 import FloatingCopilot from './components/FloatingCopilot'
 import RiskPanel from './components/RiskPanel'
 import TelemetryGlobe from './components/TelemetryGlobe'
-import { api, type Alert, type AttackPath, type ContainExecution, type EventLogEntry, type ExplainResponse, type Health, type SigmaRuleMeta, type VerifyResponse } from './api/client'
+import { api, type Alert, type AttackPath, type ContainExecution, type EventLogEntry, type ExplainResponse, type Health, type PlaybookStep, type SigmaRuleMeta, type VerifyResponse } from './api/client'
 import { formatLocalTime, formatLocalDateTime, formatRelative } from './utils/time'
 import { parseStoredAiFields } from './utils/aiFields'
 import { fallbackSigmaYaml } from './data/fallbacks'
@@ -78,7 +80,7 @@ function isItdrAlert(a: Alert | null | undefined) {
 function pickPrimaryIncident(incidents: Alert[]) {
   const score = (i: Alert) => new Date(i.last_webhook_at || i.time || 0).getTime()
   const live = incidents
-    .filter((i) => i.ingest_source === 'webhook' && isItdrAlert(i))
+    .filter((i) => (i.ingest_source === 'webhook' || i.ingest_source === 'simulation') && isItdrAlert(i))
     .sort((a, b) => {
       if (a.status !== b.status) {
         if (a.status === 'contained') return 1
@@ -88,6 +90,13 @@ function pickPrimaryIncident(incidents: Alert[]) {
     })
   if (live.length) return live[0]
   return incidents.find(isItdrAlert) ?? incidents[0] ?? null
+}
+
+function pickViewIncident(incidents: Alert[], view: View, selectedId: string | null) {
+  if (view === 'detection' && selectedId) {
+    return incidents.find((i) => i.id === selectedId) ?? pickPrimaryIncident(incidents)
+  }
+  return pickPrimaryIncident(incidents)
 }
 
 function buildTimeline(alert: Alert | null, wazuhLive: boolean) {
@@ -170,10 +179,15 @@ export default function App() {
   const [timelineCount, setTimelineCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
+  const [exportingReport, setExportingReport] = useState<'pdf' | 'docx' | null>(null)
   const [clock, setClock] = useState('')
   const [kpiFilter, setKpiFilter] = useState<KpiFilter>('all')
   const [playbookFeedback, setPlaybookFeedback] = useState<'yes' | 'no' | null>(null)
+  const [playbookPreview, setPlaybookPreview] = useState<PlaybookStep[]>([])
   const lastWebhookToast = useRef<string>('')
+  const knownIncidentIds = useRef<Set<string>>(new Set())
+  const incidentsBootstrapped = useRef(false)
+  const seenLogEventIds = useRef<Set<string>>(new Set())
 
   useEffect(() => {
     try {
@@ -196,8 +210,9 @@ export default function App() {
     if (inc.ai_status) setAiStatus(inc.ai_status)
   }, [])
 
-  const showNewAlertToast = useCallback((inc: Alert) => {
-    setToast(`New ${inc.attack} alert — ${inc.user} → ${inc.target}`)
+  const showNewAlertToast = useCallback((inc: Alert, kind: 'new' | 'update' = 'new') => {
+    const prefix = kind === 'update' ? 'Webhook update' : 'New alert'
+    setToast(`${prefix}: ${inc.attack} — ${inc.user} → ${inc.target}`)
     window.setTimeout(() => setToast(null), 6000)
   }, [])
 
@@ -216,6 +231,16 @@ export default function App() {
     setContained(inc.status === 'contained')
     setFocusedNode((f) => f ?? inc.target)
     applyAiFields(inc)
+    if (inc.status === 'contained') {
+      setContainActions(inc.approved_actions ?? [])
+      setContainExecution(inc.contain_execution ?? [])
+      setContainMode(inc.contain_execution?.some((e) => e.status === 'executed') ? 'live' : 'simulated')
+    } else {
+      setContainActions([])
+      setContainExecution([])
+      setContainMode(null)
+      setPlaybookFeedback(null)
+    }
     if (inc.simulation_active) {
       setDemoStep(inc.demo_step ?? 0)
       setRiskScore(inc.risk)
@@ -239,10 +264,7 @@ export default function App() {
     try {
       const inc = await api.incident(id)
       applyIncident(inc, incidents)
-      setContained(inc.status === 'contained')
-      setContainActions([])
       setApprovedActions(new Set())
-      setContainExecution([])
       if (inc.ai_actions?.length) setAiActions(inc.ai_actions)
     } catch {
       const local = incidents.find((i) => i.id === id)
@@ -270,17 +292,19 @@ export default function App() {
       ])
       setEventLogs(logsRes.events)
       setLogsTotal(logsRes.total ?? logsRes.events.length)
+      logsRes.events.forEach((ev) => { if (ev.id) seenLogEventIds.current.add(ev.id) })
       setHealthData(health)
       setConnected(health.ok)
       setWazuhLive(Boolean(health.data?.wazuh_kerberos ?? health.data?.wazuh_real))
       setAttackPath(path)
       setSigmaYaml(sigma.yaml)
       setSigmaRules(rules.rules)
-      const preferred =
-        selectedId && view === 'detection'
-          ? incidentList.find((i) => i.id === selectedId) ?? pickPrimaryIncident(incidentList)
-          : pickPrimaryIncident(incidentList)
+      const preferred = pickViewIncident(incidentList, view, selectedId)
       applyIncident(preferred ?? null, incidentList)
+      if (!incidentsBootstrapped.current) {
+        incidentList.forEach((i) => knownIncidentIds.current.add(i.id))
+        incidentsBootstrapped.current = true
+      }
       if (preferred) {
         markIncidentSeen(preferred.id, prevAlertId)
         if (preferred.last_webhook_at) markWebhookToastSeen(preferred.last_webhook_at, lastWebhookToast)
@@ -312,6 +336,24 @@ export default function App() {
   }, [loadLogs, logsPage])
 
   useEffect(() => {
+    if (!initialLoadDone.current || !connected) return
+    for (const ev of eventLogs) {
+      if (!ev.id || seenLogEventIds.current.has(ev.id)) continue
+      const isNewAlert = ev.level === 'alert' || (ev.level === 'webhook' && /new .* alert/i.test(ev.message))
+      if (!isNewAlert || !ev.incident_id) continue
+      seenLogEventIds.current.add(ev.id)
+      api.incidents().then((list) => {
+        const inc = list.find((i) => i.id === ev.incident_id) ?? pickPrimaryIncident(list)
+        if (!inc || !isItdrAlert(inc)) return
+        knownIncidentIds.current.add(inc.id)
+        applyIncident(inc, list)
+        setView('command')
+        showNewAlertToast(inc, 'new')
+      }).catch(() => undefined)
+    }
+  }, [eventLogs, connected, applyIncident, showNewAlertToast])
+
+  useEffect(() => {
     refresh()
     const poll = window.setInterval(async () => {
       try {
@@ -329,24 +371,35 @@ export default function App() {
         loadLogs(logsPage).catch(() => undefined)
         const live = pickPrimaryIncident(incidents)
         if (live) {
-          const pinnedOnDetection = Boolean(selectedId && view === 'detection')
-          const toApply = pinnedOnDetection
-            ? incidents.find((i) => i.id === selectedId) ?? live
-            : live
+          const toApply = pickViewIncident(incidents, view, selectedId)
 
-          if (
-            initialLoadDone.current
-            && live.ingest_source === 'webhook'
-            && live.last_webhook_at
-            && live.last_webhook_at !== lastWebhookToast.current
-            && isItdrAlert(live)
-            && (live.risk ?? 0) >= 50
-          ) {
-            lastWebhookToast.current = live.last_webhook_at
-            markWebhookToastSeen(live.last_webhook_at, lastWebhookToast)
-            markIncidentSeen(live.id, prevAlertId)
-            showNewAlertToast(live)
+          if (initialLoadDone.current) {
+            const freshIds = new Set<string>()
+            for (const inc of incidents) {
+              if (inc.ingest_source !== 'webhook' || !isItdrAlert(inc)) continue
+              if (!knownIncidentIds.current.has(inc.id)) {
+                knownIncidentIds.current.add(inc.id)
+                freshIds.add(inc.id)
+                showNewAlertToast(inc, 'new')
+                if (view !== 'command') setView('command')
+              }
+            }
+
+            if (
+              live.ingest_source === 'webhook'
+              && live.last_webhook_at
+              && live.last_webhook_at !== lastWebhookToast.current
+              && isItdrAlert(live)
+              && !freshIds.has(live.id)
+            ) {
+              lastWebhookToast.current = live.last_webhook_at
+              markWebhookToastSeen(live.last_webhook_at, lastWebhookToast)
+              markIncidentSeen(live.id, prevAlertId)
+              showNewAlertToast(live, 'update')
+              if (view !== 'command') setView('command')
+            }
           }
+
           applyIncident(toApply, incidents)
           if (toApply.id) {
             api.attackPath(toApply.id).then(setAttackPath).catch(() => undefined)
@@ -370,7 +423,11 @@ export default function App() {
     return () => window.clearInterval(id)
   }, [])
 
-  const hasIncident = Boolean(alert && isItdrAlert(alert) && ((alert.risk ?? 0) >= 50 || alert.ingest_source === 'webhook'))
+  const hasIncident = Boolean(
+    alert
+    && isItdrAlert(alert)
+    && (alert.ingest_source === 'webhook' || alert.ingest_source === 'simulation'),
+  )
   const hasLiveWebhook = incidents.some((i) => i.ingest_source === 'webhook')
 
   useEffect(() => {
@@ -466,6 +523,24 @@ export default function App() {
     ? containActions
     : aiActions.length ? aiActions : alert?.response ?? []
 
+  const previewActionList = contained
+    ? []
+    : approvedActions.size > 0
+      ? [...approvedActions]
+      : aiActions.length > 0
+        ? []
+        : responseList
+
+  useEffect(() => {
+    if (view !== 'response' || !alert?.id || !connected || contained || !previewActionList.length) {
+      setPlaybookPreview([])
+      return
+    }
+    api.playbookPreview(alert.id, previewActionList)
+      .then((r) => setPlaybookPreview(r.steps ?? []))
+      .catch(() => setPlaybookPreview([]))
+  }, [view, alert?.id, connected, contained, previewActionList.join('|')])
+
   async function runSimulation() {
     if (busy || !hasLiveWebhook) return
     setBusy(true)
@@ -503,7 +578,11 @@ export default function App() {
   async function containIdentity() {
     if (!alert || busy || contained) return
     const toExecute = approvedActions.size > 0 ? [...approvedActions] : responseList
-    if (!toExecute.length) return
+    if (!toExecute.length) {
+      setToast('No response actions yet — open Response tab or wait for ARIA')
+      window.setTimeout(() => setToast(null), 4000)
+      return
+    }
     setBusy(true)
     try {
       const r = await api.contain(alert.id, toExecute)
@@ -518,9 +597,46 @@ export default function App() {
       setToast(r.mode === 'live' ? 'Playbook executed on lab AD' : 'Playbook logged — copy PowerShell from Response tab and run in lab AD')
       window.setTimeout(() => setToast(null), 5000)
       await refresh()
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Containment failed'
+      setToast(`Mark done failed: ${msg}`)
+      window.setTimeout(() => setToast(null), 6000)
     } finally {
       setBusy(false)
     }
+  }
+
+  async function exportExecutiveReport(format: 'pdf' | 'docx') {
+    if (!alert?.id || exportingReport) return
+    setExportingReport(format)
+    setToast(`ARIA generating executive ${format.toUpperCase()} with DeepSeek v4-pro…`)
+    try {
+      const { filename } = await api.exportExecutiveReport(alert.id, format)
+      setToast(`Downloaded ${filename}`)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Export failed'
+      setToast(`Report failed: ${msg}`)
+    } finally {
+      setExportingReport(null)
+      window.setTimeout(() => setToast(null), 6000)
+    }
+  }
+
+  function onContainClick() {
+    if (!hasIncident || contained || busy) return
+    if (!contained && aiActions.length > 0 && approvedActions.size === 0) {
+      setView('response')
+      setToast('Approve response actions, then click Mark done')
+      window.setTimeout(() => setToast(null), 5000)
+      return
+    }
+    if (!responseList.length) {
+      setView('response')
+      setToast('Waiting for ARIA response actions…')
+      window.setTimeout(() => setToast(null), 4000)
+      return
+    }
+    void containIdentity()
   }
 
   function toggleActionApproval(action: string) {
@@ -580,22 +696,32 @@ export default function App() {
 
   function openPlaybookRefinement() {
     setPlaybookFeedback('no')
+    const attack = alert?.attack ?? 'this incident'
+    const isAsRep = /as-?rep/i.test(attack) || alert?.mitre === 'T1558.004'
+    const host = alert?.host ?? 'SERVER01'
+    const target = alert?.target ?? 'target account'
     const blocks = containExecution
       .map((ex) => `Action: ${ex.action}\n\`\`\`powershell\n${ex.command}\n\`\`\``)
       .join('\n\n')
-    setCopilotPrompt({
-      text: `The containment playbook for ${alert?.attack ?? 'this incident'} (target ${alert?.target}, host ${alert?.host}) needs a complete rewrite.
-
-Current commands (incomplete for our lab):
-${blocks}
-
-Provide FULL copy-paste PowerShell for each action on ${alert?.host ?? 'the DC'}:
-1. Audit — show current Kerberos pre-auth / SPN / encryption settings for ${alert?.target}
-2. Contain — disable "Do not require Kerberos preauth" safely
+    const steps = isAsRep
+      ? `1. Audit — Kerberos pre-auth / DoNotRequirePreAuth for ${target}
+2. Contain — require pre-authentication safely
 3. Remediate — force password reset with verification
-4. Verify — confirm the account is no longer AS-REP roastable
+4. Verify — confirm account is no longer AS-REP roastable`
+      : `1. Audit — SPN / encryption settings for ${target}
+2. Contain — disable RC4 / isolate source account ${alert?.user ?? 'source'}
+3. Remediate — force service account password reset
+4. Verify — confirm SPN exposure reduced`
+    setCopilotPrompt({
+      text: `Rewrite the ${attack} containment playbook (target ${target}, host ${host}).
 
-Use separate \`\`\`powershell code blocks. Include -Server '${alert?.host ?? 'SERVER01'}' on every Set/Get-AD* command.`,
+Current commands:
+${blocks || '(none yet)'}
+
+Provide FULL copy-paste PowerShell for lab AD on ${host}:
+${steps}
+
+Use separate \`\`\`powershell code blocks. Include -Server '${host}' on every Get-AD* / Set-AD* command.`,
       key: Date.now(),
     })
   }
@@ -706,11 +832,31 @@ Use separate \`\`\`powershell code blocks. Include -Server '${alert?.host ?? 'SE
           </button>
           <button
             className={`ag__btn ag__btn--contain ${contained ? 'is-done' : ''}`}
-            onClick={containIdentity}
-            disabled={!hasIncident || contained || busy || !responseList.length || (!contained && approvedActions.size === 0 && aiActions.length > 0)}
+            onClick={onContainClick}
+            disabled={!hasIncident || contained || busy}
             title={!contained && approvedActions.size === 0 && aiActions.length > 0 ? 'Approve response actions first' : 'Copy commands from Response tab, run in lab AD, then mark playbook done'}
           >
-            <ShieldCheck size={13} /> {contained ? 'Playbook recorded' : approvedActions.size ? `Mark done (${approvedActions.size})` : 'Response'}
+            <ShieldCheck size={13} /> {contained ? 'Playbook recorded' : approvedActions.size ? `Mark done (${approvedActions.size})` : 'Mark done'}
+          </button>
+          <button
+            type="button"
+            className="ag__btn ag__btn--report"
+            onClick={() => exportExecutiveReport('pdf')}
+            disabled={!hasIncident || !!exportingReport || busy}
+            title="Generate CISO-grade executive PDF (DeepSeek v4-pro)"
+          >
+            <FilePdf size={14} weight="duotone" />
+            {exportingReport === 'pdf' ? 'Generating…' : 'Executive PDF'}
+          </button>
+          <button
+            type="button"
+            className="ag__btn ag__btn--report"
+            onClick={() => exportExecutiveReport('docx')}
+            disabled={!hasIncident || !!exportingReport || busy}
+            title="Generate CISO-grade executive DOCX (DeepSeek v4-pro)"
+          >
+            <FileDoc size={14} weight="duotone" />
+            {exportingReport === 'docx' ? 'Generating…' : 'Executive DOCX'}
           </button>
           <time className="ag__clock">{clock}</time>
         </div>
@@ -1193,71 +1339,100 @@ Use separate \`\`\`powershell code blocks. Include -Server '${alert?.host ?? 'SE
                 <div className="response-layout response-layout--solo">
                   <section className="glass-pane glass-pane--response glass-pane--grow">
                     <div className="pane-head">
-                      <h2>Response actions</h2>
+                      <h2>Response</h2>
                       <span>
                         {contained
-                          ? `Recorded · ${containMode === 'live' ? 'live AD execution' : 'copy-run playbook'}`
+                          ? `Playbook recorded · ${containMode === 'live' ? 'live AD' : 'copy-run'}`
                           : aiActions.length
-                            ? 'Proposed · approve, copy commands, mark done'
-                            : aiStatus === 'pending'
-                              ? 'ARIA generating actions…'
-                              : 'Waiting for incident'}
+                            ? `${approvedActions.size}/${responseList.length} approved`
+                            : 'Waiting for incident'}
                       </span>
                     </div>
-                    {!contained && aiActions.length > 0 && (
-                      <div className="response-approve-bar">
-                        <button type="button" className="ag__btn ag__btn--ghost" onClick={approveAllActions}>
-                          Approve all
-                        </button>
-                        <span>{approvedActions.size}/{responseList.length} approved</span>
-                      </div>
-                    )}
-                    <ol className="action-list action-list--wide">
-                      {responseList.map((a, i) => (
-                        <motion.li
-                          key={a}
-                          className={approvedActions.has(a) ? 'is-approved' : ''}
-                          initial={{ opacity: 0, x: -12 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: i * 0.07, ease: [0.16, 1, 0.3, 1] }}
-                        >
+
+                    <div className="response-grid">
+                      <div className="response-panel response-panel--actions">
+                        <div className="response-panel__head">
+                          <h3>Actions</h3>
                           {!contained && aiActions.length > 0 && (
-                            <label className="action-approve">
-                              <input
-                                type="checkbox"
-                                checked={approvedActions.has(a)}
-                                onChange={() => toggleActionApproval(a)}
-                              />
-                            </label>
+                            <button type="button" className="ag__btn ag__btn--ghost ag__btn--sm" onClick={approveAllActions}>
+                              Approve all
+                            </button>
                           )}
-                          <span>{i + 1}</span>
-                          <div>
-                            <strong>{a}</strong>
-                            <small>{actionSubtext(i)}</small>
-                          </div>
-                          {contained && <ShieldCheck size={16} weight="fill" className="txt-ok" />}
-                          {!contained && approvedActions.has(a) && <ShieldCheck size={16} weight="duotone" className="txt-ok" />}
-                        </motion.li>
-                      ))}
-                    </ol>
-                    {!hasIncident && <p className="hint">Run an attack demo or ingest a Wazuh ITDR webhook (Kerberoasting, AS-REP, etc.). Approve actions, copy PowerShell, run in lab AD, then Mark done.</p>}
-                    {contained && containExecution.length > 0 && (
-                      <div className="response-exec-log">
-                        <h3>Playbook commands</h3>
-                        <p className="hint">
-                          {containMode === 'live'
-                            ? 'Commands ran against lab AD.'
-                            : 'Copy each block into PowerShell on your domain controller. Set LAB_AD_ENABLED=true in backend/.env only if you want automated execution.'}
-                        </p>
-                        <ol>
-                          {containExecution.map((ex) => (
-                            <li key={ex.playbook_id + ex.action} className={`response-exec-log__item response-exec-log__item--${ex.status}`}>
-                              <strong>{ex.action}</strong>
-                              <CodeBlock code={ex.command} lang="powershell" />
-                              <span className="response-exec-log__status">{ex.status} — {ex.message}</span>
-                            </li>
-                          ))}
-                        </ol>
+                        </div>
+                        {!hasIncident && (
+                          <p className="hint">Ingest a Wazuh ITDR webhook, approve actions, copy PowerShell, then Mark done.</p>
+                        )}
+                        {hasIncident && (
+                          <ol className="action-list action-list--compact">
+                            {responseList.map((a, i) => (
+                              <li key={a} className={approvedActions.has(a) ? 'is-approved' : ''}>
+                                {!contained && aiActions.length > 0 && (
+                                  <label className="action-approve">
+                                    <input
+                                      type="checkbox"
+                                      checked={approvedActions.has(a)}
+                                      onChange={() => toggleActionApproval(a)}
+                                    />
+                                  </label>
+                                )}
+                                <span className="action-list__num">{i + 1}</span>
+                                <div>
+                                  <strong>{a}</strong>
+                                  <small>{actionSubtext(i)}</small>
+                                </div>
+                                {(contained || approvedActions.has(a)) && (
+                                  <ShieldCheck size={15} weight={contained ? 'fill' : 'duotone'} className="txt-ok" />
+                                )}
+                              </li>
+                            ))}
+                          </ol>
+                        )}
+                        {!contained && hasIncident && responseList.length > 0 && (
+                          <button
+                            type="button"
+                            className="ag__btn ag__btn--contain response-panel__done"
+                            onClick={onContainClick}
+                            disabled={busy}
+                          >
+                            <ShieldCheck size={14} />
+                            {approvedActions.size ? `Mark done (${approvedActions.size})` : 'Mark done'}
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="response-panel response-panel--commands">
+                        <div className="response-panel__head">
+                          <h3>PowerShell</h3>
+                          <span className="response-playbook__badge">
+                            {contained
+                              ? (containMode === 'live' ? 'Executed' : 'Copy-run')
+                              : 'Preview · not executed'}
+                          </span>
+                        </div>
+                        {!contained && approvedActions.size === 0 && (
+                          <p className="hint">Approve actions to preview commands here.</p>
+                        )}
+                        {((!contained && approvedActions.size > 0 && playbookPreview.length > 0) || (contained && containExecution.length > 0)) && (
+                          <ol className="response-playbook__list">
+                            {!contained && playbookPreview.map((step, i) => (
+                              <li key={step.id + step.action} className="response-playbook__step">
+                                <strong>{i + 1}. {step.action}</strong>
+                                <CodeBlock code={step.command} lang="powershell" />
+                              </li>
+                            ))}
+                            {contained && containExecution.map((ex, i) => (
+                              <li key={ex.playbook_id + ex.action} className="response-playbook__step">
+                                <strong>{i + 1}. {ex.action}</strong>
+                                <CodeBlock code={ex.command} lang="powershell" />
+                              </li>
+                            ))}
+                          </ol>
+                        )}
+                      </div>
+                    </div>
+
+                    {contained && (
+                      <div className="response-feedback-wrap">
                         {playbookFeedback === null && (
                           <div className="response-feedback">
                             <p>Are you satisfied with the playbook output?</p>
@@ -1265,21 +1440,17 @@ Use separate \`\`\`powershell code blocks. Include -Server '${alert?.host ?? 'SE
                               <button type="button" className="ag__btn" onClick={() => setPlaybookFeedback('yes')}>
                                 Yes — looks good
                               </button>
-                              <button
-                                type="button"
-                                className="ag__btn ag__btn--ghost"
-                                onClick={openPlaybookRefinement}
-                              >
+                              <button type="button" className="ag__btn ag__btn--ghost" onClick={openPlaybookRefinement}>
                                 No — refine with ARIA
                               </button>
                             </div>
                           </div>
                         )}
                         {playbookFeedback === 'yes' && (
-                          <p className="response-feedback__ok">Playbook accepted. Incident stays marked as contained in the dashboard.</p>
+                          <p className="response-feedback__ok">Playbook accepted.</p>
                         )}
                         {playbookFeedback === 'no' && (
-                          <p className="response-feedback__hint">ARIA opened with your refinement request — adjust commands in chat.</p>
+                          <p className="response-feedback__hint">ARIA opened — ask for a full playbook rewrite.</p>
                         )}
                       </div>
                     )}

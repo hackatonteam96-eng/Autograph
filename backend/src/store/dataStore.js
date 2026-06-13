@@ -279,6 +279,8 @@ class DataStore {
       ai_summary_model: ai?.summary_model || null,
       ai_actions_model: ai?.actions_model || null,
       ai_enriched_at: ai?.enriched_at || null,
+      approved_actions: state?.approved_actions || null,
+      contain_execution: state?.execution || null,
     };
   }
 
@@ -455,6 +457,13 @@ class DataStore {
       this.simulation = { active: false, step: 0, startedAt: null, risk: ingested[0].risk ?? 87 };
       const incident = ingested[0];
       const { isNew } = this.upsertAlertHistory(incident, { ingest_source: "webhook" });
+      if (!isNew && this.getIncidentStatus(incident.id) === "contained") {
+        this.incidentState.delete(incident.id);
+        appendEvent("system", `Incident re-opened — new ${incident.attack} webhook on ${incident.host}`, {
+          incident_id: incident.id,
+          attack: incident.attack,
+        });
+      }
       this.startAiEnrichment(incident.id);
       appendEvent(isNew ? "alert" : "webhook", isNew
         ? `New ${incident.attack} alert from Wazuh/Yara webhook`
@@ -536,7 +545,8 @@ class DataStore {
     }
 
     const ai = this.aiEnrichment.get(incidentId);
-    const executedActions = approvedActions.length > 0
+    const normalizeAction = (a) => (typeof a === "string" ? a : a?.action || "").trim();
+    const rawActions = approvedActions.length > 0
       ? approvedActions
       : ai?.actions?.length
         ? ai.actions
@@ -548,6 +558,7 @@ class DataStore {
               "RC4 disabled recommendation generated",
               "SOC ticket created",
             ];
+    const executedActions = rawActions.map(normalizeAction).filter(Boolean);
 
     const existing = this.incidentState.get(incidentId);
     if (existing?.status === "contained") {

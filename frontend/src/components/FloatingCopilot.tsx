@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { motion, AnimatePresence } from 'motion/react'
+import { motion } from 'motion/react'
 import { Cpu, X } from '@phosphor-icons/react'
 import AnalystCopilot from './AnalystCopilot'
 
@@ -42,39 +42,29 @@ export default function FloatingCopilot({
 
   return (
     <div className={`float-copilot ${hideFab ? 'float-copilot--hidden' : ''}`}>
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            className="float-copilot__panel"
-            initial={{ opacity: 0, y: 16, scale: 0.96 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 12, scale: 0.97 }}
-            transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-          >
-            <button
-              type="button"
-              className="float-copilot__close"
-              onClick={() => setOpen(false)}
-              aria-label="Close ARIA"
-            >
-              <X size={14} weight="bold" />
-            </button>
-            <AnalystCopilot
-              incidentId={incidentId}
-              disabled={disabled}
-              compact
-              viewContext={viewContext}
-              incidentHeadline={incidentHeadline}
-              incidentVerdict={incidentVerdict}
-              incidentUser={incidentUser}
-              incidentTarget={incidentTarget}
-              incidentRisk={incidentRisk}
-              autoAsk={autoAsk}
-              onAutoAskHandled={() => setAutoAsk(null)}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <div className={`float-copilot__panel ${open ? '' : 'float-copilot__panel--hidden'}`}>
+        <button
+          type="button"
+          className="float-copilot__close"
+          onClick={() => setOpen(false)}
+          aria-label="Close ARIA"
+        >
+          <X size={14} weight="bold" />
+        </button>
+        <AnalystCopilot
+          incidentId={incidentId}
+          disabled={disabled}
+          compact
+          viewContext={viewContext}
+          incidentHeadline={incidentHeadline}
+          incidentVerdict={incidentVerdict}
+          incidentUser={incidentUser}
+          incidentTarget={incidentTarget}
+          incidentRisk={incidentRisk}
+          autoAsk={autoAsk}
+          onAutoAskHandled={() => setAutoAsk(null)}
+        />
+      </div>
 
       <motion.button
         type="button"

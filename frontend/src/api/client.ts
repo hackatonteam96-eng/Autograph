@@ -46,6 +46,8 @@ export type Alert = {
   ai_enriched_at?: string | null
   ingest_source?: 'webhook' | 'simulation' | 'sample'
   last_webhook_at?: string | null
+  approved_actions?: string[] | null
+  contain_execution?: ContainExecution[] | null
 }
 
 export type AttackPath = {
@@ -85,6 +87,13 @@ export type ContainExecution = {
   status: 'simulated' | 'executed' | 'failed'
   message: string
   output?: string
+}
+
+export type PlaybookStep = {
+  id: string
+  action: string
+  description: string
+  command: string
 }
 
 export type SigmaRule = {
@@ -178,6 +187,11 @@ export const api = {
       method: 'POST',
       body: actions?.length ? JSON.stringify({ actions }) : undefined,
     }),
+  playbookPreview: (incidentId: string, actions: string[]) =>
+    request<{ ok: boolean; steps: PlaybookStep[] }>('/playbook/preview', {
+      method: 'POST',
+      body: JSON.stringify({ incident_id: incidentId, actions }),
+    }),
   aiRespond: (id: string) => request<AiResponse>(`/ai/respond/${id}`),
   simulateKerberoast: () =>
     request<{ ok: boolean; status: SimulationStatus; incident?: Alert }>('/simulate/kerberoast', { method: 'POST' }),
@@ -212,4 +226,27 @@ export const api = {
         view_context: viewContext,
       }),
     }),
+  exportExecutiveReport: async (id: string, format: 'pdf' | 'docx') => {
+    const response = await fetch(`${API_BASE}/reports/${encodeURIComponent(id)}/export`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ format }),
+      signal: AbortSignal.timeout(120000),
+    })
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}))
+      throw new Error((body as { error?: string }).error || `Export failed: ${response.status}`)
+    }
+    const blob = await response.blob()
+    const disposition = response.headers.get('Content-Disposition') || ''
+    const match = disposition.match(/filename="([^"]+)"/)
+    const filename = match?.[1] || `AuthGraph-ITDR-report.${format}`
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = filename
+    anchor.click()
+    URL.revokeObjectURL(url)
+    return { ok: true, filename }
+  },
 }

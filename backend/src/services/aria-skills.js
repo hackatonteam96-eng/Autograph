@@ -64,7 +64,13 @@ function buildAriaSystemPrompt(mode = "incident") {
     ? "\n<active_mode>greeting — analyst sent a social/opening message. Stay brief; no incident dump.</active_mode>"
     : mode === "offtopic"
       ? "\n<active_mode>offtopic — gently redirect to ITDR work.</active_mode>"
-      : "\n<active_mode>incident — analyst wants technical help. Use incident context.</active_mode>";
+      : mode === "playbook"
+        ? `\n<active_mode>playbook — analyst needs FULL defensive PowerShell for lab AD.
+Output 3-5 separate \`\`\`powershell code blocks (one per phase: audit, contain, remediate, verify).
+Every Get-AD* / Set-AD* must include -Server 'HOST' from incident context.
+No generic summaries. No repeating the seed greeting. No "ask me about path" deflection.
+Match the attack type (Kerberoasting vs AS-REP) — do not mention AS-REP steps for Kerberoasting-only incidents.</active_mode>`
+        : "\n<active_mode>incident — analyst wants technical help. Use incident context.</active_mode>";
 
   return [ARIA_IDENTITY, ARIA_SKILLS, ARIA_CONVERSATION, ARIA_SAFETY, modeHint].join("\n\n");
 }
@@ -187,18 +193,54 @@ Schema:
 }
 Adapt language and actions to the actual attack type in the incident block. Do not assume Kerberoasting unless evidence shows it.`;
 
+const EXECUTIVE_REPORT_SYSTEM = `You are ARIA Executive Briefings — tier-1 identity-threat report writer for AuthGraph ITDR.
+Audience: CISO, VP Security, SOC director, and board risk committee. Tone: authoritative, precise, zero hype, zero AI filler phrases.
+You produce Fortune-500-grade incident reports for ANY identity threat (Kerberoasting, AS-REP roasting, DCSync, Entra risky sign-in, privilege escalation, etc.).
+
+Output ONLY valid JSON — no markdown fences, no preamble, no commentary outside JSON.
+
+Quality bar:
+- executive_summary: 3-4 sentences a non-technical executive understands — business impact, affected services, urgency, decision needed today
+- technical_summary: 5-8 sentences for SOC/IR lead — attack chain, evidence, detection source (Wazuh/Sigma/event ID), why not benign
+- blast_radius: concrete downstream assets from attack path — name identities, hosts, privilege tiers
+- risk_rationale: cite numeric risk score AND specific detection factors
+- recommended_actions: 4-6 items, ordered by priority, each with owner (IAM|AD Ops|DBA|SOC|Entra|CISO) and rationale referencing this incident
+- timeline_utc: chronological Detection → Correlation → ARIA → Containment (if applicable)
+- false_positive_notes: what evidence would downgrade severity, or empty string
+
+Schema (strict):
+{
+  "subject": "≤90 chars e.g. [HIGH] AuthGraph ITDR Executive Brief — AttackType — user → target",
+  "severity_label": "CRITICAL|HIGH|MEDIUM|LOW",
+  "executive_summary": "string",
+  "technical_summary": "string",
+  "mitre": { "id": "Txxxx.xxx", "name": "technique name", "tactics": ["Tactic1"] },
+  "affected_identities": [{ "role": "source|target|host|asset", "name": "identity", "detail": "one line" }],
+  "evidence_highlights": ["specific evidence bullets with event IDs, encryption types, sigma matches"],
+  "blast_radius": "string",
+  "risk_rationale": "string",
+  "recommended_actions": [{ "priority": 1, "action": "specific step", "owner": "team", "rationale": "one line" }],
+  "timeline_utc": [{ "label": "Detection|Correlation|ARIA|Containment", "detail": "what happened" }],
+  "indicators_of_compromise": ["accounts, IPs, hosts, SPNs"],
+  "false_positive_notes": "string or empty"
+}
+
+Adapt every field to the ACTUAL attack type in the incident block. Never generic Kerberoasting language unless evidence confirms it.`;
+
 function buildReportPrompt(alert, extras = {}) {
   const enrichment = extras.aiEnrichment || {};
+  const contained = extras.contained ? "YES — include containment status in timeline and recommendations" : "NO — incident still open";
   return `${buildIncidentBlock(alert, { ...extras, aiEnrichment: enrichment })}
 
-ARIA enrichment already available:
+ARIA enrichment:
 Headline: ${enrichment.headline || "n/a"}
 Verdict: ${enrichment.verdict || "n/a"}
 Confidence: ${enrichment.confidence || "n/a"}
 Urgency: ${enrichment.urgency || "n/a"}
 Prior actions: ${(enrichment.actions || []).join("; ") || "n/a"}
+Contained: ${contained}
 
-Produce the JSON incident report for email/PDF distribution to the SOC.`;
+Produce the JSON incident report for ${extras.executive ? "executive PDF/DOCX distribution to leadership and SOC" : "email/PDF distribution to the SOC"}.`;
 }
 
 function parseJsonPayload(text) {
@@ -237,5 +279,6 @@ module.exports = {
   VERDICT_SYSTEM,
   CONTAINMENT_SYSTEM,
   REPORT_SYSTEM,
+  EXECUTIVE_REPORT_SYSTEM,
   parseJsonPayload,
 };

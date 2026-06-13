@@ -10,6 +10,7 @@ const { appendEvent } = require("./eventLog");
 const {
   buildReportPrompt,
   REPORT_SYSTEM,
+  EXECUTIVE_REPORT_SYSTEM,
   parseJsonPayload,
 } = require("./aria-skills");
 
@@ -98,6 +99,9 @@ async function callReasoningModel(messages, maxTokens = 1200) {
 async function generateIncidentReport(alert, extras = {}) {
   const enrichment = extras.aiEnrichment || {};
   const fallback = fallbackReport(alert, enrichment);
+  const executive = Boolean(extras.executive);
+  const maxTokens = extras.maxTokens ?? (executive ? 2800 : 1200);
+  const systemPrompt = executive ? EXECUTIVE_REPORT_SYSTEM : REPORT_SYSTEM;
 
   if (!OPENROUTER_API_KEY) {
     return { ...fallback, source: "fallback" };
@@ -105,9 +109,9 @@ async function generateIncidentReport(alert, extras = {}) {
 
   try {
     const { text, model } = await callReasoningModel([
-      { role: "system", content: REPORT_SYSTEM },
-      { role: "user", content: buildReportPrompt(alert, extras) },
-    ]);
+      { role: "system", content: systemPrompt },
+      { role: "user", content: buildReportPrompt(alert, { ...extras, executive }) },
+    ], maxTokens);
 
     const parsed = parseJsonPayload(text);
     if (parsed?.executive_summary) {
