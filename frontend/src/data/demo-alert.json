@@ -1,0 +1,28 @@
+{
+  "id": "alert-001",
+  "time": "2026-06-12T14:03:00Z",
+  "source": "Wazuh",
+  "attack": "Kerberoasting",
+  "mitre": "T1558.003",
+  "severity": "critical",
+  "risk": 87,
+  "user": "lowpriv.user",
+  "target": "svc-sql",
+  "source_ip": "10.0.0.42",
+  "host": "DC01",
+  "event_id": 4769,
+  "evidence": [
+    "Multiple Kerberos TGS requests from one user",
+    "RC4 encrypted service ticket requested",
+    "Target account has SPN configured",
+    "Service account is linked to privileged SQL server"
+  ],
+  "response": [
+    "Reset service account password",
+    "Disable RC4 Kerberos encryption",
+    "Review SPN ownership",
+    "Investigate source user session",
+    "Rotate credentials for exposed service account"
+  ],
+  "status": "open"
+}
