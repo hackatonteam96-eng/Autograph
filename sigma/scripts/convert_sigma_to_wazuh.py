@@ -36,15 +36,15 @@ SKIP_FILES = {
     "brute-force.yml",
 }
 
-# Sigma field → Wazuh field (Windows Security / eventchannel)
+# Sigma → Wazuh field names (IpAddress/target user use decoder aliases)
 FIELD_MAP = {
     "EventID": "win.system.eventID",
-    "TargetUserName": "win.eventdata.targetUserName",
+    "TargetUserName": "dstuser",
     "TargetDomainName": "win.eventdata.targetDomainName",
     "ServiceName": "win.eventdata.serviceName",
     "TicketEncryptionType": "win.eventdata.ticketEncryptionType",
     "TicketOptions": "win.eventdata.ticketOptions",
-    "IpAddress": "win.eventdata.ipAddress",
+    "IpAddress": "srcip",
     "WorkstationName": "win.eventdata.workstationName",
     "Status": "win.eventdata.status",
     "SubStatus": "win.eventdata.subStatus",
@@ -52,7 +52,7 @@ FIELD_MAP = {
     "PreAuthType": "win.eventdata.preAuthType",
     "CommandLine": "win.eventdata.commandLine",
     "ScriptBlockText": "win.eventdata.scriptBlockText",
-    "NewProcessName": "win.eventdata.newProcessName",
+    "NewProcessName": "win.eventdata.processName",
     "ParentProcessName": "win.eventdata.parentProcessName",
     "Properties": "win.eventdata.properties",
     "SubjectUserName": "win.eventdata.subjectUserName",
@@ -94,8 +94,10 @@ def wazuh_field(sigma_key: str) -> tuple[str, str | None]:
     """Return (wazuh_field, modifier) from 'Field|contains'."""
     if "|" in sigma_key:
         field, mod = sigma_key.split("|", 1)
-        return FIELD_MAP.get(field, f"win.eventdata.{field[0].lower()}{field[1:]}"), mod
-    return FIELD_MAP.get(sigma_key, f"win.eventdata.{sigma_key[0].lower()}{sigma_key[1:]}"), None
+        base = field.split(".")[-1]
+        mapped = FIELD_MAP.get(field) or FIELD_MAP.get(base) or base[0].lower() + base[1:]
+        return mapped, mod
+    return FIELD_MAP.get(sigma_key, sigma_key[0].lower() + sigma_key[1:]), None
 
 
 def values_to_regex(values: Any, modifier: str | None) -> str:
@@ -122,6 +124,11 @@ def values_to_regex(values: Any, modifier: str | None) -> str:
             parts.append(f"^{v}$")
         else:
             s = str(v)
+            if s in ("::1",):
+                continue
+            if s in ("-", ""):
+                parts.append("^-$|^$")
+                continue
             if re.match(r"^0x[0-9a-fA-F]+$", s):
                 low = s.lower()
                 high = s.upper()
@@ -162,9 +169,15 @@ def merge_field_criteria(
 
     out: list[tuple[str, str, bool]] = []
     for (wfield, negate), patterns in buckets.items():
-        # Strip anchors and rejoin as alternation
-        inner = "|".join(p.strip("^").strip("$") for p in patterns)
-        out.append((wfield, f"^{inner}$", negate))
+        if len(patterns) == 1:
+            out.append((wfield, patterns[0], negate))
+            continue
+        anchored = all(p.startswith("^") and p.endswith("$") for p in patterns)
+        if anchored:
+            inner = "|".join(p[1:-1] for p in patterns)
+            out.append((wfield, f"^{inner}$", negate))
+        else:
+            out.append((wfield, "|".join(patterns), negate))
     return out
 
 
@@ -307,7 +320,7 @@ def build_rule_element(
         child.text = "windows,"
 
     for wfield, regex, negate in criteria:
-        field_el = ET.SubElement(rule, "field", name=wfield)
+        field_el = ET.SubElement(rule, "field", name=wfield, type="pcre2")
         if negate:
             field_el.set("negate", "yes")
         field_el.text = regex
