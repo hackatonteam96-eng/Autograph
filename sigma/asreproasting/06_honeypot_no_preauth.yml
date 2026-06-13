@@ -1,0 +1,43 @@
+title: AS-REP Roasting - Honeypot No-PreAuth Account TGT Request
+id: authgraph-ar-06-honeypot
+status: experimental
+description: |
+  Detects ANY successful TGT request (4768) for a decoy user account you create
+  with DONT_REQ_PREAUTH set. Legitimate users never authenticate as this account —
+  any PreAuthType=0 TGT request is near-certain AS-REP roasting or enumeration.
+  CUSTOMIZE honeypot_username values before deploying.
+author: Gular — AuthGraph ITDR Detection Team
+date: 2026/06/13
+references:
+  - https://attack.mitre.org/techniques/T1558/004/
+  - https://www.blumira.com/blog/how-to-detect-as-rep-roasting
+tags:
+  - attack.credential_access
+  - attack.t1558.004
+  - attack.defense_evasion
+logsource:
+  product: windows
+  service: security
+detection:
+  selection:
+    EventID: 4768
+    Status: '0x0'
+    ServiceName: 'krbtgt'
+    PreAuthType:
+      - 0
+      - '0'
+  filter_honeypot:
+    TargetUserName|contains:
+      - 'HONEYPOT'
+      - 'YayNoPreauth'
+      - 'decoy-nopreauth'
+  condition: selection and filter_honeypot
+falsepositives:
+  - None expected if honeypot account is never used legitimately
+level: critical
+fields:
+  - TargetUserName
+  - IpAddress
+  - PreAuthType
+  - TicketEncryptionType
+  - WorkstationName

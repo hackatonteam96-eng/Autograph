@@ -1,0 +1,55 @@
+title: AS-REP Roasting - Multiple No-PreAuth Accounts From Same Source (5 min)
+id: authgraph-ar-02-multi-account
+status: experimental
+description: |
+  HIGH FIDELITY AS-REP Roasting detection. Attack tools (Rubeus asreproast,
+  Impacket GetNPUsers.py, Kerbrute) enumerate and request TGTs for every account
+  with DONT_REQ_PREAUTH in minutes.
+  Alerts when one source IP obtains 3+ distinct no-preauth TGTs within 5 minutes.
+author: Gular — AuthGraph ITDR Detection Team
+date: 2026/06/13
+references:
+  - https://attack.mitre.org/techniques/T1558/004/
+  - https://github.com/GhostPack/Rubeus
+tags:
+  - attack.credential_access
+  - attack.t1558.004
+logsource:
+  product: windows
+  service: security
+detection:
+  selection:
+    EventID: 4768
+    Status: '0x0'
+    ServiceName: 'krbtgt'
+    PreAuthType:
+      - 0
+      - '0'
+    TicketEncryptionType:
+      - '0x17'
+      - '0x1'
+      - '0x23'
+  filter_machine_user:
+    TargetUserName|endswith: '$'
+  filter_krbtgt_account:
+    TargetUserName|contains: 'krbtgt'
+  filter_null_ip:
+    IpAddress:
+      - '-'
+      - ''
+  filter_loopback:
+    IpAddress:
+      - '127.0.0.1'
+      - '::1'
+  condition: selection and not 1 of filter_* | count_distinct(TargetUserName) by IpAddress > 3
+  timeframe: 5m
+falsepositives:
+  - Bulk migration scripts touching multiple legacy no-preauth accounts
+  - Misconfigured monitoring authenticating to several DONT_REQ_PREAUTH users
+level: critical
+fields:
+  - TargetUserName
+  - IpAddress
+  - PreAuthType
+  - TicketEncryptionType
+  - WorkstationName

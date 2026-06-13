@@ -1,0 +1,49 @@
+title: AS-REP Roasting Tooling - PowerShell Script Block (Event 4104)
+id: authgraph-ar-04-powershell-tools
+status: experimental
+description: |
+  Detects PowerShell Script Block Logging (4104) for AS-REP roasting cmdlets
+  and functions: Invoke-ASRepRoast, Get-DomainUser -PreauthNotRequired, etc.
+  Enable "PowerShell Script Block Logging" via GPO on clients and servers.
+author: Gular — AuthGraph ITDR Detection Team
+date: 2026/06/13
+references:
+  - https://attack.mitre.org/techniques/T1558/004/
+  - https://attack.mitre.org/techniques/T1059/001/
+tags:
+  - attack.credential_access
+  - attack.t1558.004
+  - attack.execution
+  - attack.t1059.001
+logsource:
+  product: windows
+  service: powershell
+  definition: |
+    Enable via GPO: Computer Config → Admin Templates → Windows Components →
+    PowerShell → Turn on PowerShell Script Block Logging
+detection:
+  selection_asrep:
+    EventID: 4104
+    ScriptBlockText|contains:
+      - 'Invoke-ASRepRoast'
+      - 'ASREPRoast'
+      - 'asreproast'
+      - 'Get-DomainUser -PreauthNotRequired'
+      - 'PreauthNotRequired'
+      - 'DoesNotRequirePreAuth'
+      - 'GetNPUsers'
+      - 'asrep-roast'
+  filter_fp_admin:
+    ScriptBlockText|contains:
+      - 'Get-Help'
+      - '# detection test'
+  condition: selection_asrep and not filter_fp_admin
+falsepositives:
+  - Security team running detection validation scripts
+  - IT admins auditing accounts with pre-auth disabled
+  - Red team exercises with approved scope
+level: high
+fields:
+  - ScriptBlockText
+  - Path
+  - UserId

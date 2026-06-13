@@ -1,0 +1,45 @@
+title: AS-REP Roasting Precursor - LDAP No-PreAuth Account Enumeration (Event 4662)
+id: authgraph-ar-03-ldap-preauth-enum
+status: experimental
+description: |
+  Pre-attack indicator. Attackers query AD for accounts with userAccountControl
+  DONT_REQ_PREAUTH (0x400000) before AS-REP roasting — PowerView Get-DomainUser
+  -PreauthNotRequired, LDAP filters, BloodHound, GetNPUsers enumeration.
+  Event 4662 logs directory object access on user objects.
+  Enable "Audit Directory Service Access" on DCs.
+author: Gular — AuthGraph ITDR Detection Team
+date: 2026/06/13
+references:
+  - https://attack.mitre.org/techniques/T1558/004/
+  - https://attack.mitre.org/techniques/T1087/002/
+tags:
+  - attack.credential_access
+  - attack.t1558.004
+  - attack.discovery
+  - attack.t1087.002
+logsource:
+  product: windows
+  service: security
+  definition: |
+    DC Advanced Audit Policy:
+    - Audit Directory Service Access → Success (and Failure optional)
+detection:
+  selection:
+    EventID: 4662
+  filter_uac:
+    Properties|contains: 'userAccountControl'
+  filter_preauth_literal:
+    Properties|contains:
+      - 'DoesNotRequirePreAuth'
+      - 'DONT_REQ_PREAUTH'
+  condition: selection and 1 of filter_uac, filter_preauth_literal
+falsepositives:
+  - AD management tools auditing account flags
+  - BloodHound collectors run by IT inventory or red team
+  - get-aduser -Properties DoesNotRequirePreAuth run by administrators
+level: medium
+fields:
+  - SubjectUserName
+  - ObjectName
+  - Properties
+  - IpAddress

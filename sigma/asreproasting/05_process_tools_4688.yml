@@ -1,0 +1,62 @@
+title: AS-REP Roasting Tooling - Process Creation (Event 4688)
+id: authgraph-ar-05-process-tools
+status: experimental
+description: |
+  Detects execution of known AS-REP roasting binaries and command lines via
+  Windows Security Event 4688 (Process Creation). Catches Rubeus asreproast,
+  Impacket GetNPUsers.py, Kerbrute, and related CLI patterns.
+  Enable "Audit Process Creation" + include command line (GPO).
+author: Gular — AuthGraph ITDR Detection Team
+date: 2026/06/13
+references:
+  - https://attack.mitre.org/techniques/T1558/004/
+  - https://attack.mitre.org/techniques/T1059/
+tags:
+  - attack.credential_access
+  - attack.t1558.004
+  - attack.execution
+logsource:
+  product: windows
+  service: security
+  definition: |
+    GPO: Audit Process Creation → Success
+    Include command line in 4688 (Microsoft-Windows-Security-Auditing)
+detection:
+  selection_rubeus:
+    EventID: 4688
+    CommandLine|contains:
+      - 'asreproast'
+      - 'asrep-roast'
+      - 'ASREPRoast'
+      - 'Rubeus.exe asrep'
+      - 'Rubeus asrep'
+  selection_impacket:
+    EventID: 4688
+    CommandLine|contains:
+      - 'GetNPUsers.py'
+      - 'getnpusers'
+  selection_kerbrute:
+    EventID: 4688
+    CommandLine|contains:
+      - 'kerbrute'
+      - 'userenum'
+  selection_powershell:
+    EventID: 4688
+    CommandLine|contains:
+      - 'Invoke-ASRepRoast'
+      - 'Get-DomainUser -PreauthNotRequired'
+      - 'DoesNotRequirePreAuth'
+  filter_legit:
+    ParentProcessName|contains:
+      - 'nessus'
+      - 'qualys'
+  condition: 1 of selection_* and not filter_legit
+falsepositives:
+  - IT admins auditing no-preauth accounts with approved scripts
+  - Approved penetration tests
+level: high
+fields:
+  - SubjectUserName
+  - NewProcessName
+  - CommandLine
+  - ParentProcessName
