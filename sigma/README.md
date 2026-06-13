@@ -91,13 +91,18 @@ MITRE: **T1558.001** — forged Kerberos TGT (krbtgt hash) used for domain-wide 
 
 **DC audit policy:** Audit Kerberos Service Ticket Operations → Success + Failure
 
-## Wazuh import
+## Wazuh
 
-1. Hər YAML-ı Wazuh Sigma converter və ya manual XML rule-a çevir
-2. **Correlation rule-lar** (kerberoasting 02, 03, 04, 11, 13; password-spraying.yml; brute-force 01–05; asreproasting 02; golden-ticket 02) üçün Wazuh `frequency` + `same_field` / `different_field` istifadə et
-3. DC agent + Kerberos / Logon audit policy aktiv olmalıdır
+Sigma YAML avtomatik Wazuh XML-ə çevrilir:
 
-Ətraflı: [`kerberoasting/README.md`](./kerberoasting/README.md) · [`brute-force/README.md`](./brute-force/README.md) · [`asreproasting/README.md`](./asreproasting/README.md) · [`golden-ticket/README.md`](./golden-ticket/README.md)
+```bash
+cd sigma/scripts && pip install -r requirements.txt
+python convert_sigma_to_wazuh.py
+sudo cp ../wazuh/local_rules.xml /var/ossec/etc/rules/local_rules.xml
+sudo systemctl restart wazuh-manager
+```
+
+Ətraflı: [`scripts/README.md`](./scripts/README.md) · [`WAZUH-DEPLOYMENT.md`](./WAZUH-DEPLOYMENT.md)
 
 ## Export shape
 
