@@ -49,6 +49,26 @@ sudo systemctl restart wazuh-manager
 
 Repo-da yalnız **Sigma YAML** qalır; XML manager-də avtomatik yaranır.
 
+## Avtomatik deploy (cron)
+
+Wazuh manager-də bir dəfə:
+
+```bash
+sudo git clone -b sigma https://github.com/hackatonteam96-eng/Autograph.git /opt/Autograph
+cd /opt/Autograph/sigma/scripts
+sudo bash install-cron.sh
+```
+
+| Nə | Dəyər |
+|----|-------|
+| Schedule | Hər gün **02:00** (default) |
+| Skript | `/usr/local/bin/authgraph-deploy-wazuh.sh` |
+| Log | `/var/log/authgraph-wazuh-deploy.log` |
+
+Manual test: `sudo /usr/local/bin/authgraph-deploy-wazuh.sh`
+
+Hər 6 saat: `sudo CRON_SCHEDULE='0 */6 * * *' bash install-cron.sh`
+
 ## Qeydlər
 
 - `kerberoasting.yml`, `asreproasting.yml`, `golden-ticket.yml`, `brute-force.yml` skip olunur (suite qovluqlarında eyni qaydalar var)
