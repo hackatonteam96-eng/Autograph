@@ -32,14 +32,64 @@ REQUIREMENTS="$SCRIPTS_DIR/requirements.txt"
 [[ -d "$REPO_DIR/.git" ]] || die "Repo not found at $REPO_DIR — clone Autograph first"
 [[ -f "$CONVERTER" ]] || die "Converter not found: $CONVERTER"
 
-# --- Python venv (optional but recommended) ---
-if [[ ! -d "$VENV_DIR" ]]; then
-  log "Creating venv at $VENV_DIR"
-  python3 -m venv "$VENV_DIR"
-fi
-# shellcheck source=/dev/null
-source "$VENV_DIR/bin/activate"
-pip install -q -r "$REQUIREMENTS"
+PYTHON="python3"
+
+setup_python() {
+  if "$PYTHON" -c "import yaml" 2>/dev/null; then
+    log "Python OK (pyyaml available)"
+    return
+  fi
+
+  # Try venv first when ensurepip is available
+  if python3 -m venv "$VENV_DIR" 2>/dev/null; then
+    log "Using venv at $VENV_DIR"
+    # shellcheck source=/dev/null
+    source "$VENV_DIR/bin/activate"
+    pip install -q -r "$REQUIREMENTS"
+    PYTHON="$VENV_DIR/bin/python3"
+    return
+  fi
+
+  # Broken partial venv from a failed run — remove and retry once
+  if [[ -d "$VENV_DIR" ]]; then
+    log "Removing incomplete venv at $VENV_DIR"
+    rm -rf "$VENV_DIR"
+    if python3 -m venv "$VENV_DIR" 2>/dev/null; then
+      # shellcheck source=/dev/null
+      source "$VENV_DIR/bin/activate"
+      pip install -q -r "$REQUIREMENTS"
+      PYTHON="$VENV_DIR/bin/python3"
+      return
+    fi
+  fi
+
+  log "venv not available — installing pyyaml via apt/pip"
+  if command -v apt-get >/dev/null; then
+    apt-get update -qq
+    apt-get install -y -qq python3-yaml 2>/dev/null \
+      || apt-get install -y -qq python3-pip 2>/dev/null \
+      || true
+  fi
+
+  if "$PYTHON" -c "import yaml" 2>/dev/null; then
+    log "Installed python3-yaml via apt"
+    return
+  fi
+
+  if command -v pip3 >/dev/null; then
+    pip3 install -q pyyaml 2>/dev/null \
+      || pip3 install -q --break-system-packages pyyaml 2>/dev/null \
+      || pip3 install -q -r "$REQUIREMENTS"
+    if "$PYTHON" -c "import yaml" 2>/dev/null; then
+      log "Installed pyyaml via pip3"
+      return
+    fi
+  fi
+
+  die "Cannot install pyyaml. Run: sudo apt install python3-yaml   OR   sudo apt install python3.10-venv && re-run"
+}
+
+setup_python
 
 # --- Pull latest Sigma rules ---
 log "Pulling $BRANCH from $REPO_DIR"
@@ -52,14 +102,14 @@ BEFORE="$(git rev-parse HEAD)"
 
 # --- Convert Sigma → Wazuh XML ---
 log "Converting sigma/*.yml → $OUTPUT_XML"
-python3 "$CONVERTER" \
+"$PYTHON" "$CONVERTER" \
   --sigma-dir "$REPO_DIR/sigma" \
   --output "$OUTPUT_XML"
 
 [[ -f "$OUTPUT_XML" ]] || die "Converter did not create $OUTPUT_XML"
 
 # --- Validate XML (basic) ---
-python3 -c "import xml.etree.ElementTree as ET; ET.parse('$OUTPUT_XML')" \
+"$PYTHON" -c "import xml.etree.ElementTree as ET; ET.parse('$OUTPUT_XML')" \
   || die "Generated XML is invalid"
 
 # --- Restart Wazuh only if repo changed or rules file is new ---

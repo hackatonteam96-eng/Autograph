@@ -54,9 +54,11 @@ Repo-da yalnız **Sigma YAML** qalır; XML manager-də avtomatik yaranır.
 Wazuh manager-də bir dəfə:
 
 ```bash
+sudo apt install -y python3-yaml git   # və ya: python3.10-venv
 sudo git clone -b sigma https://github.com/hackatonteam96-eng/Autograph.git /opt/Autograph
 cd /opt/Autograph/sigma/scripts
 sudo bash install-cron.sh
+sudo /usr/local/bin/authgraph-deploy-wazuh.sh
 ```
 
 | Nə | Dəyər |
