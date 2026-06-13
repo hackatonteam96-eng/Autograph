@@ -94,6 +94,11 @@ log "Converting sigma/*.yml → $OUTPUT_XML"
   --output "$OUTPUT_XML"
 
 [[ -f "$OUTPUT_XML" ]] || die "Converter did not create $OUTPUT_XML"
+chmod 640 "$OUTPUT_XML"
+chown root:wazuh "$OUTPUT_XML" 2>/dev/null || chown root:ossec "$OUTPUT_XML" 2>/dev/null || true
+log "Wrote $(grep -c '<rule ' "$OUTPUT_XML" || echo 0) rules to $OUTPUT_XML"
+head -3 "$OUTPUT_XML" | while read -r line; do log "  $line"; done
+
 "$PYTHON" -c "import xml.etree.ElementTree as ET; ET.parse('$OUTPUT_XML')" \
   || die "Generated XML is invalid"
 

@@ -78,6 +78,17 @@ Hər 6 saat: `sudo CRON_SCHEDULE='0 */6 * * *' bash install-cron.sh`
 - `1 of selection_*` və `1 of filter_*` OR məntiqi dəstəklənir
 - Çıxan rule ID-lər sigma `id` sahəsindən stabil hash ilə yaranır (100000+)
 
-## Test
+## Troubleshooting
 
-Wazuh manager-də real 4625 və ya 4769 event JSON-u ilə `wazuh-logtest` işlədin.
+**`Group 'group' without any rule`** — Wazuh boş `<group>` qəbul etmir. Minimal `local_rules.xml`:
+
+```bash
+sudo tee /var/ossec/etc/rules/local_rules.xml << 'EOF'
+<group name="local,authgraph,">
+  <rule id="100001" level="0">
+    <description>AuthGraph local rules placeholder</description>
+  </rule>
+</group>
+EOF
+sudo /var/ossec/bin/wazuh-analysisd -t && sudo systemctl start wazuh-manager
+```
