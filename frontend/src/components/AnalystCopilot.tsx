@@ -58,10 +58,12 @@ export default function AnalystCopilot({
   incidentId,
   disabled,
   compact = false,
+  viewContext,
 }: {
   incidentId?: string
   disabled?: boolean
   compact?: boolean
+  viewContext?: string
 }) {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
@@ -101,7 +103,7 @@ export default function AnalystCopilot({
     }))
 
     try {
-      const data = await api.aiChat(incidentId, text, history)
+      const data = await api.aiChat(incidentId, text, history, viewContext)
       const reply = data.reply || 'Signal lost — check backend.'
       if (data.model) {
         setModelLabel(data.model.includes('pro') ? 'deepseek-v4-pro' : 'deepseek-v4-flash')
@@ -111,8 +113,12 @@ export default function AnalystCopilot({
         setLastAssistantIdx(updated.length - 1)
         return updated
       })
-    } catch {
-      setMessages((m) => [...m, { role: 'assistant', text: 'Lost connection to ARIA. Reconnect backend and try again.', ts: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }])
+    } catch (err) {
+      const timedOut = err instanceof DOMException && err.name === 'TimeoutError'
+      const text = timedOut
+        ? 'That one needed deep reasoning and took too long. Try a more specific question.'
+        : 'Lost connection to ARIA. Reconnect backend and try again.'
+      setMessages((m) => [...m, { role: 'assistant', text, ts: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }])
     } finally {
       setLoading(false)
     }

@@ -82,13 +82,16 @@ export const api = {
     incidentId: string | undefined,
     message: string,
     conversationHistory?: { role: 'user' | 'assistant'; content: string }[],
+    viewContext?: string,
   ) =>
     request<{ ok: boolean; reply: string; model?: string }>('/ai/chat', {
       method: 'POST',
+      signal: AbortSignal.timeout(60000),
       body: JSON.stringify({
         incident_id: incidentId,
         message,
         conversation_history: conversationHistory,
+        view_context: viewContext,
       }),
     }),
 }

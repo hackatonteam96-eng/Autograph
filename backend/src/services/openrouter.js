@@ -53,17 +53,38 @@ async function callOpenRouter({ model, messages, temperature, maxTokens }) {
   };
 }
 
-function buildIncidentBlock(alert) {
-  return `<INCIDENT_CONTEXT>
-Attack: ${alert.attack} (${alert.mitre})
-User: ${alert.user}
-Target: ${alert.target}
-Host: ${alert.host}
-Event: ${alert.event_id}
-Risk: ${alert.risk}/100
-Status: ${alert.status || "open"}
-Evidence: ${(alert.evidence || []).join("; ")}
-</INCIDENT_CONTEXT>`;
+function buildIncidentBlock(alert, extras = {}) {
+  const { attackPath, contained, viewContext } = extras;
+
+  const detection = alert.detection || {};
+  const riskBreakdown = Array.isArray(detection.risk_breakdown)
+    ? detection.risk_breakdown.map((f) => `${f.factor} (+${f.points}): ${f.description}`).join("; ")
+    : "";
+
+  const pathLine = attackPath?.edges?.length
+    ? attackPath.edges.map((e) => `${e.from} —[${e.label}]→ ${e.to}`).join("  |  ")
+    : "";
+
+  const lines = [
+    "<INCIDENT_CONTEXT>",
+    `Attack: ${alert.attack} (${alert.mitre})`,
+    `Source user: ${alert.user}`,
+    `Target identity: ${alert.target}`,
+    `Host: ${alert.host}`,
+    `Source IP: ${alert.source_ip || "n/a"}`,
+    `Event ID: ${alert.event_id}`,
+    `Risk score: ${alert.risk}/100 (${alert.severity || "n/a"})`,
+    `Status: ${contained ? "CONTAINED" : alert.status || "open"}`,
+    `Sigma matched: ${detection.sigma_matched ? "yes" : "no"}`,
+    `Evidence: ${(alert.evidence || []).join("; ")}`,
+    riskBreakdown ? `Risk factors: ${riskBreakdown}` : "",
+    pathLine ? `Attack path: ${pathLine}` : "",
+    alert.response?.length ? `Recommended playbook: ${alert.response.join("; ")}` : "",
+    viewContext ? `Analyst is viewing: ${viewContext}` : "",
+    "</INCIDENT_CONTEXT>",
+  ].filter(Boolean);
+
+  return lines.join("\n");
 }
 
 const ARIA_SYSTEM = `<role>
@@ -152,7 +173,7 @@ async function analyzeIncident(alert) {
   }
 }
 
-async function chatWithAnalyst(alert, userMessage, conversationHistory = []) {
+async function chatWithAnalyst(alert, userMessage, conversationHistory = [], extras = {}) {
   const greeting = isGreeting(userMessage);
   const model = greeting ? OPENROUTER_CHAT_MODEL : pickChatModel(userMessage);
 
@@ -179,8 +200,8 @@ async function chatWithAnalyst(alert, userMessage, conversationHistory = []) {
   }
 
   const incidentBlock = greeting
-    ? `<BACKGROUND_ONLY_DO_NOT_RECITE_UNLESS_ASKED>\n${buildIncidentBlock(alert)}\n</BACKGROUND_ONLY_DO_NOT_RECITE_UNLESS_ASKED>`
-    : buildIncidentBlock(alert);
+    ? `<BACKGROUND_ONLY_DO_NOT_RECITE_UNLESS_ASKED>\n${buildIncidentBlock(alert, extras)}\n</BACKGROUND_ONLY_DO_NOT_RECITE_UNLESS_ASKED>`
+    : buildIncidentBlock(alert, extras);
 
   messages.push({
     role: "user",

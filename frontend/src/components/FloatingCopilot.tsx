@@ -7,10 +7,12 @@ export default function FloatingCopilot({
   incidentId,
   disabled,
   hasIncident,
+  viewContext,
 }: {
   incidentId?: string
   disabled?: boolean
   hasIncident?: boolean
+  viewContext?: string
 }) {
   const [open, setOpen] = useState(false)
 
@@ -33,7 +35,7 @@ export default function FloatingCopilot({
             >
               <X size={14} weight="bold" />
             </button>
-            <AnalystCopilot incidentId={incidentId} disabled={disabled} compact />
+            <AnalystCopilot incidentId={incidentId} disabled={disabled} compact viewContext={viewContext} />
           </motion.div>
         )}
       </AnimatePresence>

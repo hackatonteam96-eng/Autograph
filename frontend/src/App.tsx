@@ -593,7 +593,7 @@ export default function App() {
         </main>
       </div>
 
-      <FloatingCopilot incidentId={alert?.id} disabled={!hasIncident} hasIncident={hasIncident} />
+      <FloatingCopilot incidentId={alert?.id} disabled={!hasIncident} hasIncident={hasIncident} viewContext={`${view} view`} />
     </div>
   )
 }
