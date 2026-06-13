@@ -1,0 +1,13 @@
+{
+  "collected_at": "2026-06-12T18:00:00Z",
+  "host": "WS-CLIENT01",
+  "host_role": "client",
+  "domain": "corp.local",
+  "ip": "10.0.0.42",
+  "os": "Windows 11 Pro",
+  "local_admins": ["Administrator", "labadmin"],
+  "logged_on_users": [
+    { "user": "CORP\\lowpriv.user", "session_type": "Interactive" },
+    { "user": "CORP\\labadmin", "session_type": "RemoteInteractive", "note": "Domain Admin on workstation" }
+  ]
+}

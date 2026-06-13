@@ -1,0 +1,8 @@
+# DNS Client log — WS-CLIENT01
+# Microsoft-Windows-DNS-Client/Operational (simplified text export)
+
+2026-06-12T14:00:55Z QUERY _ldap._tcp.corp.local UDP 10.0.0.10:53 SUCCESS
+2026-06-12T14:01:00Z QUERY SQL-SERVER.corp.local A 10.0.0.20 SUCCESS
+2026-06-12T14:01:02Z QUERY web01.corp.local A 10.0.0.25 SUCCESS
+2026-06-12T14:01:05Z QUERY exchange01.corp.local A 10.0.0.30 SUCCESS
+2026-06-12T14:02:00Z QUERY dc01.corp.local A 10.0.0.10 SUCCESS

@@ -1,0 +1,50 @@
+{
+  "bundle_version": "1.0",
+  "collected_at": "2026-06-12T18:00:00Z",
+  "domain": "corp.local",
+  "instruction_for_ai": "Analyze these raw DC and client logs. Return JSON array of identity posture findings with title, severity (high|medium|low), category (risk|posture), evidence. Match CrowdStrike Identity Protection style.",
+  "dc": {
+    "hostname": "DC01",
+    "ip": "10.0.0.10",
+    "ad_posture": {
+      "password_policy": { "MinPasswordLength": 8, "ComplexityEnabled": true },
+      "registry": {
+        "LanmanServer_RequireSecuritySignature": 0,
+        "NTDS_LDAPServerIntegrity": 1,
+        "NTDS_LdapEnforceChannelBinding": 0
+      },
+      "services": [{ "name": "Spooler", "status": "Running" }],
+      "krbtgt_password_age_days": 247,
+      "accounts": [
+        { "sam": "svc-sql", "spn": ["MSSQLSvc/SQL-SERVER.corp.local:1433"], "groups": ["SQL Admins"] },
+        { "sam": "svc-backup", "password_last_set": "2024-03-01T12:00:00Z", "notes": "same rotation as svc-sql" }
+      ],
+      "attack_path_edges": [
+        { "from": "lowpriv.user", "to": "svc-sql", "relation": "TGS 4769" },
+        { "from": "svc-sql", "to": "SQL Admins", "relation": "MemberOf" },
+        { "from": "SQL Admins", "to": "Domain Sensitive Assets", "relation": "Access" }
+      ],
+      "acl_anomalies": [{ "trustee": "CORP\\lowpriv.user", "right": "GenericAll", "ou": "ServiceAccounts" }],
+      "credential_risk": [{ "account": "svc-sql", "signal": "found_in_breach_list", "breach": "CorpServiceLeak2024" }]
+    },
+    "security_events": [
+      { "time": "2026-06-12T14:03:00Z", "event_id": 4769, "TargetUserName": "lowpriv.user", "ServiceName": "MSSQLSvc/SQL-SERVER.corp.local:1433", "TicketEncryptionType": "0x17", "WorkstationName": "WS-CLIENT01" },
+      { "time": "2026-06-12T14:03:02Z", "event_id": 4769, "TargetUserName": "lowpriv.user", "ServiceName": "HTTP/web01.corp.local", "TicketEncryptionType": "0x17" },
+      { "time": "2026-06-12T14:03:05Z", "event_id": 4769, "TargetUserName": "lowpriv.user", "ServiceName": "HTTP/exchange01.corp.local", "TicketEncryptionType": "0x17" },
+      { "time": "2026-06-12T14:01:30Z", "event_id": 4662, "SubjectUserName": "lowpriv.user", "Properties": "servicePrincipalName" }
+    ],
+    "dns_log": "6/12/2026 2:01:00 PM QUERY_RECEIVED UDP 10.0.0.42 SQL-SERVER.corp.local\n6/12/2026 2:01:02 PM QUERY_RECEIVED UDP 10.0.0.42 web01.corp.local"
+  },
+  "client": {
+    "hostname": "WS-CLIENT01",
+    "ip": "10.0.0.42",
+    "logged_on_users": ["CORP\\lowpriv.user", "CORP\\labadmin"],
+    "security_events": [
+      { "time": "2026-06-12T14:02:30Z", "event_id": 4688, "CommandLine": "Rubeus.exe kerberoast /outfile:roast.txt" },
+      { "time": "2026-06-12T14:02:28Z", "event_id": 4104, "ScriptBlockText": "Invoke-Kerberoast -OutputFormat Hashcat" },
+      { "time": "2026-06-12T13:55:00Z", "event_id": 4624, "TargetUserName": "labadmin", "LogonType": "10", "note": "Domain Admin RDP to workstation" }
+    ],
+    "dns_log": "2026-06-12T14:01:00Z QUERY SQL-SERVER.corp.local A 10.0.0.20",
+    "http_log": "2026-06-12 14:02:40 POST /api/ingest 200 AuthGraphForwarder/1.0"
+  }
+}

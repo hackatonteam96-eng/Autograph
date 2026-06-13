@@ -1,0 +1,82 @@
+{
+  "collected_at": "2026-06-12T18:00:00Z",
+  "collector": "mock-lab-snapshot",
+  "host": "DC01",
+  "host_role": "dc",
+  "domain": "corp.local",
+  "domain_dn": "DC=corp,DC=local",
+  "password_policy": {
+    "MinPasswordLength": 8,
+    "ComplexityEnabled": true,
+    "PasswordHistoryCount": 12,
+    "LockoutThreshold": 5,
+    "MaxPasswordAge_days": 90
+  },
+  "registry": {
+    "LanmanServer_RequireSecuritySignature": 0,
+    "LanmanWorkstation_RequireSecuritySignature": 0,
+    "NTDS_LDAPServerIntegrity": 1,
+    "NTDS_LdapEnforceChannelBinding": 0
+  },
+  "services": [
+    { "name": "Spooler", "display_name": "Print Spooler", "status": "Running", "start_type": "Automatic" },
+    { "name": "NTDS", "status": "Running" },
+    { "name": "Kdc", "status": "Running" }
+  ],
+  "accounts": [
+    {
+      "sam_account": "krbtgt",
+      "password_last_set": "2025-10-08T09:15:00Z",
+      "password_age_days": 247,
+      "enabled": true
+    },
+    {
+      "sam_account": "svc-sql",
+      "password_last_set": "2024-03-01T12:00:00Z",
+      "spn": ["MSSQLSvc/SQL-SERVER.corp.local:1433"],
+      "groups": ["SQL Admins", "Domain Users"],
+      "enabled": true,
+      "notes": "service account with SPN"
+    },
+    {
+      "sam_account": "svc-backup",
+      "password_last_set": "2024-03-01T12:00:00Z",
+      "groups": ["Backup Operators"],
+      "enabled": true,
+      "notes": "same password rotation date as svc-sql — possible duplicate credential pattern"
+    },
+    {
+      "sam_account": "lowpriv.user",
+      "groups": ["Domain Users"],
+      "enabled": true
+    },
+    {
+      "sam_account": "labadmin",
+      "groups": ["Domain Admins"],
+      "enabled": true
+    }
+  ],
+  "attack_path_edges": [
+    { "from": "lowpriv.user", "to": "svc-sql", "relation": "Kerberos TGS request (4769)" },
+    { "from": "svc-sql", "to": "SQL Admins", "relation": "MemberOf" },
+    { "from": "SQL Admins", "to": "SQL-SERVER", "relation": "AdminTo" },
+    { "from": "SQL-SERVER", "to": "Domain Sensitive Assets", "relation": "Hosts sensitive data" }
+  ],
+  "acl_anomalies": [
+    {
+      "object_dn": "OU=ServiceAccounts,DC=corp,DC=local",
+      "trustee": "CORP\\lowpriv.user",
+      "right": "GenericAll",
+      "inherited": false,
+      "notes": "non-obvious privileged delegation"
+    }
+  ],
+  "credential_risk_signals": [
+    {
+      "account": "svc-sql",
+      "signal": "appears_in_public_breach_list",
+      "source": "mock-credential-feed",
+      "breach_name": "CorpServiceLeak2024"
+    }
+  ]
+}

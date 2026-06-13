@@ -11,11 +11,13 @@ const attackPathRoutes = require("./routes/attackPath");
 const riskRoutes = require("./routes/risk");
 const containRoutes = require("./routes/contain");
 const explainRoutes = require("./routes/explain");
+const ingestRoutes = require("./routes/ingest");
+const logsRoutes = require("./routes/logs");
 
 const app = express();
 
 app.use(cors({ origin: CORS_ORIGIN === "*" ? true : CORS_ORIGIN.split(",") }));
-app.use(express.json({ limit: "1mb" }));
+app.use(express.json({ limit: "5mb" }));
 app.use(requestLogger);
 
 app.use("/api", healthRoutes);
@@ -25,6 +27,8 @@ app.use("/api", attackPathRoutes);
 app.use("/api", riskRoutes);
 app.use("/api", containRoutes);
 app.use("/api", explainRoutes);
+app.use("/api", ingestRoutes);
+app.use("/api", logsRoutes);
 
 app.get("/", (_req, res) => {
   res.json({
@@ -41,6 +45,10 @@ app.get("/", (_req, res) => {
       "GET /api/explain/:incidentId",
       "POST /api/contain/:incidentId",
       "POST /api/reload",
+      "POST /api/ingest",
+      "GET /api/logs",
+      "GET /api/logs/raw",
+      "GET /api/posture",
     ],
   });
 });

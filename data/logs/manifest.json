@@ -1,0 +1,40 @@
+{
+  "bundle_version": "1.0",
+  "collected_at": "2026-06-12T18:00:00Z",
+  "domain": "corp.local",
+  "description": "Raw lab logs for DeepSeek AI — no pre-computed findings. AI should output Inventory & Posture risks.",
+  "hosts": {
+    "dc": {
+      "hostname": "DC01",
+      "ip": "10.0.0.10",
+      "files": [
+        "dc/ad-posture.json",
+        "dc/security-events.json",
+        "dc/dns.log"
+      ]
+    },
+    "client": {
+      "hostname": "WS-CLIENT01",
+      "ip": "10.0.0.42",
+      "files": [
+        "client/host-info.json",
+        "client/security-events.json",
+        "client/dns.log",
+        "client/http.log"
+      ]
+    }
+  },
+  "expected_ai_output_categories": [
+    "Compromised Password",
+    "Inadequate Password Policy",
+    "SMB Signing Disabled",
+    "LDAPS Channel Binding is not Required",
+    "Attack Path to a Privileged Account",
+    "Print Spooler Service Running",
+    "LDAP Signing is not Required",
+    "Stealthy Privileges",
+    "Duplicated Password",
+    "Privileged Endpoint Account",
+    "KRBTGT password not changed for 180 days"
+  ]
+}

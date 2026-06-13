@@ -1,0 +1,68 @@
+{
+  "collected_at": "2026-06-12T18:00:00Z",
+  "host": "DC01",
+  "log_name": "Security",
+  "events": [
+    {
+      "time": "2026-06-12T14:03:00Z",
+      "event_id": 4769,
+      "level": "Information",
+      "provider": "Microsoft-Windows-Security-Auditing",
+      "data": {
+        "TargetUserName": "lowpriv.user",
+        "ServiceName": "MSSQLSvc/SQL-SERVER.corp.local:1433",
+        "TicketEncryptionType": "0x17",
+        "TicketOptions": "0x40810000",
+        "IpAddress": "10.0.0.42",
+        "WorkstationName": "WS-CLIENT01",
+        "Status": "0x0"
+      }
+    },
+    {
+      "time": "2026-06-12T14:03:02Z",
+      "event_id": 4769,
+      "data": {
+        "TargetUserName": "lowpriv.user",
+        "ServiceName": "HTTP/web01.corp.local",
+        "TicketEncryptionType": "0x17",
+        "IpAddress": "10.0.0.42",
+        "WorkstationName": "WS-CLIENT01",
+        "Status": "0x0"
+      }
+    },
+    {
+      "time": "2026-06-12T14:03:05Z",
+      "event_id": 4769,
+      "data": {
+        "TargetUserName": "lowpriv.user",
+        "ServiceName": "HTTP/exchange01.corp.local",
+        "TicketEncryptionType": "0x17",
+        "IpAddress": "10.0.0.42",
+        "WorkstationName": "WS-CLIENT01",
+        "Status": "0x0"
+      }
+    },
+    {
+      "time": "2026-06-12T14:01:30Z",
+      "event_id": 4662,
+      "data": {
+        "SubjectUserName": "lowpriv.user",
+        "ObjectName": "CN=svc-sql,OU=ServiceAccounts,DC=corp,DC=local",
+        "Properties": "{servicePrincipalName}",
+        "AccessMask": "0x100",
+        "IpAddress": "10.0.0.42"
+      }
+    },
+    {
+      "time": "2026-06-12T13:55:00Z",
+      "event_id": 4624,
+      "data": {
+        "TargetUserName": "labadmin",
+        "LogonType": "10",
+        "WorkstationName": "WS-CLIENT01",
+        "IpAddress": "10.0.0.42",
+        "LogonProcessName": "User32"
+      }
+    }
+  ]
+}

@@ -1,0 +1,64 @@
+title: Kerberoasting - RC4 TGS For High-Value Service Principal
+id: authgraph-kb-05-sensitive-spn
+status: experimental
+description: |
+  Flags RC4 TGS requests targeting high-value SPN prefixes commonly abused in
+  Kerberoasting (SQL, HTTP, Exchange, LDAP, SMB, VMware, etc.). Single request
+  is enough to alert — privileged service account credentials at risk.
+author: Gular — AuthGraph ITDR Detection Team
+date: 2026/06/12
+references:
+  - https://attack.mitre.org/techniques/T1558.003/
+  - https://www.hub.trimarcsecurity.com/post/trimarc-research-detecting-kerberoasting-activity
+tags:
+  - attack.credential_access
+  - attack.t1558.003
+logsource:
+  product: windows
+  service: security
+detection:
+  selection:
+    EventID: 4769
+    Status: '0x0'
+    TicketEncryptionType:
+      - '0x17'
+      - '0x1'
+      - '0x23'
+  filter_sensitive_spn:
+    ServiceName|contains:
+      - 'MSSQLSvc'
+      - 'MSSQL'
+      - 'HTTP/'
+      - 'HTTPS/'
+      - 'exchangeMDB'
+      - 'exchangeRFR'
+      - 'ldap/'
+      - 'cifs/'
+      - 'host/'
+      - 'TERMSRV/'
+      - 'WSMAN/'
+      - 'SMTP/'
+      - 'IMAP/'
+      - 'POP/'
+      - 'vmware'
+      - 'Veeam'
+      - 'DNS/'
+      - 'GC/'
+      - 'RestrictedKrbHost'
+  filter_krbtgt:
+    ServiceName|contains: 'krbtgt'
+  filter_machine_spn:
+    ServiceName|endswith: '$'
+  filter_machine_user:
+    TargetUserName|contains: '$@'
+  condition: selection and filter_sensitive_spn and not 1 of filter_krbtgt, filter_machine_spn, filter_machine_user
+falsepositives:
+  - DBA or admin legitimately connecting to SQL via Kerberos from new workstation
+  - Exchange/Outlook first-time profile setup
+level: high
+fields:
+  - TargetUserName
+  - ServiceName
+  - TicketEncryptionType
+  - IpAddress
+  - WorkstationName

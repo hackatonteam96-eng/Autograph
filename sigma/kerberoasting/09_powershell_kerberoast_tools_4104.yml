@@ -1,0 +1,50 @@
+title: Kerberoasting Tooling - PowerShell Script Block (Event 4104)
+id: authgraph-kb-09-powershell-tools
+status: experimental
+description: |
+  Detects PowerShell Script Block Logging (4104) for common Kerberoasting
+  cmdlets and functions: Invoke-Kerberoast, Get-DomainSPN, Rubeus, etc.
+  Enable "PowerShell Script Block Logging" via GPO on clients and servers.
+author: Gular — AuthGraph ITDR Detection Team
+date: 2026/06/12
+references:
+  - https://attack.mitre.org/techniques/T1558.003/
+  - https://attack.mitre.org/techniques/T1059/001/
+tags:
+  - attack.credential_access
+  - attack.t1558.003
+  - attack.execution
+  - attack.t1059.001
+logsource:
+  product: windows
+  service: powershell
+  definition: |
+    Enable via GPO: Computer Config → Admin Templates → Windows Components →
+    PowerShell → Turn on PowerShell Script Block Logging
+detection:
+  selection_kerberoast:
+    EventID: 4104
+    ScriptBlockText|contains:
+      - 'Invoke-Kerberoast'
+      - 'Invoke-Kerberoasting'
+      - 'Get-DomainSPN'
+      - 'Get-NetUser'
+      - '-SPN'
+      - 'kerberoast'
+      - 'Kerberoast'
+      - 'Rubeus'
+      - 'ASREPRoast'
+      - 'GetUserSPNs'
+  filter_fp_admin:
+    ScriptBlockText|contains:
+      - 'Get-Help'
+      - '# detection test'
+  condition: selection_kerberoast and not filter_fp_admin
+falsepositives:
+  - Security team running detection validation scripts
+  - Red team exercises with approved scope
+level: high
+fields:
+  - ScriptBlockText
+  - Path
+  - UserId

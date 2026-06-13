@@ -1,0 +1,6 @@
+# HTTP access log — WS-CLIENT01 (IIS / local proxy mock)
+# date time s-ip cs-method cs-uri-stem cs-uri-query s-port cs-username c-ip cs(User-Agent) sc-status
+
+2026-06-12 14:00:12 10.0.0.42 GET /api/health - 8000 - 127.0.0.1 curl/8.0 200
+2026-06-12 14:02:40 10.0.0.42 POST /api/ingest - 8000 - 10.0.0.42 AuthGraphForwarder/1.0 200
+2026-06-12 14:03:10 10.0.0.42 GET /ldap - corp.local 389 lowpriv.user 10.0.0.10 Mozilla/5.0 200

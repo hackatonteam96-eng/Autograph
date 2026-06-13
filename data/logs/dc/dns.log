@@ -1,0 +1,9 @@
+# DNS Server log — DC01 (corp.local)
+# Format: Date Time ThreadID Category Level Event Message
+
+6/12/2026 2:00:15 PM 12A4 QUERY_RECEIVED UDP 10.0.0.42 53 _ldap._tcp.corp.local
+6/12/2026 2:00:15 PM 12A4 QUERY_RECEIVED UDP 10.0.0.42 53 _kerberos._tcp.dc01.corp.local
+6/12/2026 2:01:00 PM 12A4 QUERY_RECEIVED UDP 10.0.0.42 53 SQL-SERVER.corp.local
+6/12/2026 2:01:02 PM 12A4 QUERY_RECEIVED UDP 10.0.0.42 53 web01.corp.local
+6/12/2026 2:01:05 PM 12A4 QUERY_RECEIVED UDP 10.0.0.42 53 exchange01.corp.local
+6/12/2026 2:03:00 PM 12A4 QUERY_RECEIVED UDP 10.0.0.42 53 svc-sql.corp.local

