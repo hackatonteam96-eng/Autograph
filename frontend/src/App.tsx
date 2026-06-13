@@ -24,8 +24,7 @@ import FloatingCopilot from './components/FloatingCopilot'
 import RiskPanel from './components/RiskPanel'
 import TelemetryGlobe from './components/TelemetryGlobe'
 import { api, type Alert, type AttackPath } from './api/client'
-import fallbackAttackPath from './data/attack-path.json'
-import fallbackSigmaYaml from './data/sigma-kerberoasting.yml?raw'
+import { fallbackAttackPath, fallbackSigmaYaml } from './data/fallbacks'
 
 type View = 'command' | 'path' | 'detection' | 'response' | 'telemetry'
 
@@ -111,7 +110,7 @@ export default function App() {
       }
     } catch {
       setConnected(false)
-      setAttackPath((current) => current ?? (fallbackAttackPath as AttackPath))
+      setAttackPath((current) => current ?? fallbackAttackPath)
       setSigmaYaml((current) => current || fallbackSigmaYaml)
     }
     finally { setLoading(false) }
