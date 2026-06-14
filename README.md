@@ -23,23 +23,33 @@ Built for hackathon demos and SOC workflows: Wazuh pushes alerts in, AuthGraph c
 ## Architecture
 
 ```mermaid
-flowchart LR
-  subgraph Lab["VMware lab"]
-    A[Attacker] -->|Kerberoast| DC[Domain Controller]
-    DC -->|Event 4768/4769| WA[Wazuh Agent]
-    WA --> WM[Wazuh Manager + Sigma]
-  end
-
-  WM -->|POST /api/webhook/wazuh| API
-
-  subgraph AuthGraph["AuthGraph stack"]
-    API[Backend API :8787]
-    UI[React dashboard :5173]
-    API -->|Detection + risk| API
-    API -->|OpenRouter| ARIA[ARIA AI]
-    API --> UI
-  end
+flowchart TB
+  Attacker[Kerberoast Attacker] --> DC[Domain Controller]
+  DC --> Agent[Wazuh Agent]
+  Agent --> Manager[Wazuh Manager and Sigma]
+  Manager -->|HTTP POST webhook| API[Backend API port 8787]
+  API --> UI[React Dashboard port 5173]
+  API --> ARIA[ARIA AI via OpenRouter]
 ```
+
+<details>
+<summary>Text diagram (if Mermaid does not render)</summary>
+
+```
+Attacker ──kerberoast──▶ Domain Controller
+                              │
+                         Event 4768 / 4769
+                              ▼
+                        Wazuh Agent → Wazuh Manager
+                              │
+                    POST /api/webhook/wazuh
+                              ▼
+              Backend API (8787) ──▶ Dashboard (5173)
+                     │
+                     └──▶ ARIA AI (OpenRouter)
+```
+
+</details>
 
 **Data flow:** Wazuh calls AuthGraph (webhook push). The frontend polls `/api/incidents` and renders the full incident lifecycle — no polling Wazuh from AuthGraph.
 
